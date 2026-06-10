@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@corsair-dev/cli": "^0.1.19",
     "@corsair-dev/github": "^0.1.9",
     "corsair": "^0.1.70",
     "dotenv": "^17.4.2",
