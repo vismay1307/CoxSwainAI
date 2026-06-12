@@ -5,10 +5,25 @@ import { sendEmail } from "@/lib/gmail/sendEmail";
 import { extractEmail } from "@/lib/ai/extractEmail";
 import { extractEvent } from "@/lib/ai/extractEvent";
 import { extractMultiAction } from "@/lib/ai/extractMultiAction";
-
+import { createIssue } from "@/lib/github/createIssue";
+import { listRepos } from "@/lib/github/listRepos";
+import { isGithubRepoQuery } from "@/lib/ai/isGithubRepoQuery";
+import { extractGithubIssue } from "@/lib/ai/extractGithubIssue";
+import { findRepo } from "@/lib/github/findRepo";
+import { isGithubIssueQuery } from "@/lib/ai/isGithubIssueQuery";
 import { readEmails } from "@/lib/gmail/readEmails";
 import { readEvents } from "@/lib/calendar/readEvents";
 import { detectIntent } from "@/lib/ai/detectIntent";
+import { listIssues } from "@/lib/github/listIssues";
+import { isGithubListIssuesQuery } from "@/lib/ai/isGithubListIssuesQuery";
+import { createComment } from "@/lib/github/createComment";
+import { extractGithubComment } from "@/lib/ai/extractGithubComment";
+import { isGithubCommentQuery } from "@/lib/ai/isGithubCommentQuery";
+import { starRepo } from "@/lib/github/starRepo";
+import { isGithubStarQuery } from "@/lib/ai/isGithubStarQuery";
+import { extractGithubRepo } from "@/lib/ai/extractGithubRepo";
+
+
 export async function POST(req: Request) {
   try {
     const { message } = await req.json();
@@ -41,7 +56,214 @@ const {
         response: "✅ Email sent and calendar event created successfully",
       });
     }
+    if (isGithubIssueQuery(message)) {
+      console.time("extract");
+  const issueData =
+    await extractGithubIssue(message);
+    console.timeEnd("extract");
+    console.time("findRepo");
+if (!issueData.repo) {
+  return Response.json({
+    source: "github-issue",
+    response: "❌ Repository name not found",
+  });
+}
 
+const repo = await findRepo(
+  issueData.repo
+);
+console.timeEnd("findRepo");
+
+if (!repo) {
+  return Response.json({
+    source: "github-issue",
+    response: `❌ Repository ${issueData.repo} not found`,
+  });
+}
+
+// repo.owner may be undefined or an object with a login property
+const owner = repo.owner?.login ?? (typeof repo.owner === "string" ? repo.owner : undefined);
+if (!owner) {
+  return Response.json({
+    source: "github-issue",
+    response: `❌ Could not determine repository owner for ${issueData.repo}`,
+  });
+}
+
+const issue = await createIssue(
+  owner,
+  issueData.repo!,
+  issueData.title ?? "New Issue",
+  issueData.body ?? "",
+);
+console.timeEnd("createIssue");
+
+  return Response.json({
+    source: "github-issue",
+
+    response: `✅ Issue created successfully: ${issue.title}`,
+
+    issue,
+  });
+}
+if (isGithubCommentQuery(message)) {
+  const commentData =
+    await extractGithubComment(message);
+
+  if (!commentData.repo) {
+    return Response.json({
+      source: "github-comment",
+      response: "❌ Repository name not found",
+    });
+  }
+
+  const repo = await findRepo(
+    commentData.repo
+  );
+
+  if (!repo) {
+    return Response.json({
+      source: "github-comment",
+      response: `❌ Repository ${commentData.repo} not found`,
+    });
+  }
+
+  const owner =
+    repo.owner?.login ??
+    (typeof repo.owner === "string"
+      ? repo.owner
+      : undefined);
+
+  if (!owner) {
+    return Response.json({
+      source: "github-comment",
+      response:
+        "❌ Could not determine repository owner",
+    });
+  }
+
+  const comment =
+    await createComment(
+      owner,
+      commentData.repo,
+      commentData.issueNumber,
+      commentData.body
+    );
+
+  return Response.json({
+    source: "github-comment",
+    response: "✅ Comment added successfully",
+    comment,
+  });
+}
+if (isGithubStarQuery(message)) {
+  const repoData =
+    await extractGithubRepo(message);
+
+  if (!repoData.repo) {
+    return Response.json({
+      source: "github-star",
+      response: "❌ Repository name not found",
+    });
+  }
+
+  const repo = await findRepo(
+    repoData.repo
+  );
+
+  if (!repo) {
+    return Response.json({
+      source: "github-star",
+      response: `❌ Repository ${repoData.repo} not found`,
+    });
+  }
+
+  const owner =
+    repo.owner?.login ??
+    (typeof repo.owner === "string"
+      ? repo.owner
+      : undefined);
+
+  if (!owner) {
+    return Response.json({
+      source: "github-star",
+      response:
+        "❌ Could not determine repository owner",
+    });
+  }
+
+  await starRepo(
+    owner,
+    repoData.repo
+  );
+
+  return Response.json({
+    source: "github-star",
+    response: `⭐ Repository ${repoData.repo} starred successfully`,
+  });
+}
+if (isGithubRepoQuery(message)) {
+  const repos = await listRepos();
+
+  const repoNames = repos.map((repo: any) => ({
+    name: repo.name,
+    owner: repo.owner?.login,
+    url: repo.html_url,
+  }));
+
+  return Response.json({
+    source: "github-repos",
+    response: `Found ${repoNames.length} repositories`,
+    repos: repoNames,
+  });
+}
+if (isGithubListIssuesQuery(message)) {
+  const issueData =
+    await extractGithubIssue(message);
+
+  if (!issueData.repo) {
+    return Response.json({
+      source: "github-issues",
+      response: "❌ Repository name not found",
+    });
+  }
+
+  const repo = await findRepo(
+    issueData.repo
+  );
+
+  if (!repo) {
+    return Response.json({
+      source: "github-issues",
+      response: `❌ Repository ${issueData.repo} not found`,
+    });
+  }
+
+  const owner =
+    repo.owner?.login ??
+    (typeof repo.owner === "string"
+      ? repo.owner
+      : undefined);
+
+  if (!owner) {
+    return Response.json({
+      source: "github-issues",
+      response:
+        "❌ Could not determine repository owner",
+    });
+  }
+
+  const issues = await listIssues(
+    owner,
+    issueData.repo
+  );
+
+  return Response.json({
+    source: "github-issues",
+    response: `Found ${issues.length} issues`,
+    issues,
+  });
+}
     if (isCreateEventQuery) {
       const eventData = await extractEvent(message);
       const event = await createEvent(
