@@ -6,6 +6,7 @@ import { extractEmail } from "@/lib/ai/extractEmail";
 import { extractEvent } from "@/lib/ai/extractEvent";
 import { extractMultiAction } from "@/lib/ai/extractMultiAction";
 import { createIssue } from "@/lib/github/createIssue";
+import { corsair } from "@/server/corsair";
 import { listRepos } from "@/lib/github/listRepos";
 import { isGithubRepoQuery } from "@/lib/ai/isGithubRepoQuery";
 import { extractGithubIssue } from "@/lib/ai/extractGithubIssue";
@@ -31,9 +32,20 @@ import { isGithubCommitsQuery } from "@/lib/ai/isGithubCommitsQuery";
 import { getFileContent } from "@/lib/github/getFileContent";
 import { isGithubFileQuery } from "@/lib/ai/isGithubFileQuery";
 import { extractGithubFile } from "@/lib/ai/extractGithubFile";
-
-
-
+import { searchEmails } from "@/lib/gmail/searchEmails";
+import { isEmailSearchQuery } from "@/lib/ai/isEmailSearchQuery";
+import { extractEmailSearch } from "@/lib/ai/extractEmailSearch";
+import { isMarkReadQuery } from "@/lib/ai/isMarkReadQuery";
+import { extractMarkRead } from "@/lib/ai/extractMarkRead";
+import { markEmailRead } from "@/lib/gmail/markEmailRead";
+import { isStarEmailQuery } from "@/lib/ai/isStarEmailQuery";
+import { extractStarEmail } from "@/lib/ai/extractStarEmail";
+import { starEmail } from "@/lib/gmail/starEmail";
+import { isDraftEmailQuery } from "@/lib/ai/isDraftEmailQuery";
+import { generateDraftEmail } from "@/lib/ai/generateDraftEmail";
+import { isUnreadSummaryQuery } from "@/lib/ai/isUnreadSummaryQuery";
+import { summarizeUnreadEmails } from "@/lib/gmail/summarizeUnreadEmails";
+import { extractUnreadSummary } from "@/lib/ai/extractUnreadSummary";
 
 export async function POST(req: Request) {
   try {
@@ -485,6 +497,18 @@ return Response.json({
         event,
       });
     }
+
+    if (isDraftEmailQuery(message)) {
+  const draft =
+    await generateDraftEmail(
+      message
+    );
+
+  return Response.json({
+    source: "gmail-draft",
+    response: draft,
+  });
+}
     if (isSendEmailQuery) {
       const emailData = await extractEmail(message);
 
@@ -504,7 +528,138 @@ return Response.json({
         result,
       });
     }
+if (isMarkReadQuery(message)) {
+  const data =
+    extractMarkRead(message);
 
+  const emails =
+    await searchEmails(
+      `from:${data.sender}`
+    );
+
+  const latestEmail =
+    emails.messages?.[0];
+
+  if (!latestEmail?.id) {
+    return Response.json({
+      source: "gmail-read",
+      response:
+        "❌ No matching email found",
+    });
+  }
+
+  await markEmailRead(
+    latestEmail.id
+  );
+
+  return Response.json({
+    source: "gmail-read",
+    response: `✅ Marked latest email from ${data.sender} as read`,
+  });
+}
+
+if (isStarEmailQuery(message)) {
+  const data =
+    extractStarEmail(message);
+
+  const emails =
+    await searchEmails(
+      `from:${data.sender}`
+    );
+
+  const latestEmail =
+    emails.messages?.[0];
+
+  if (!latestEmail?.id) {
+    return Response.json({
+      source: "gmail-star",
+      response:
+        "❌ No matching email found",
+    });
+  }
+
+  await starEmail(
+    latestEmail.id
+  );
+
+  return Response.json({
+    source: "gmail-star",
+    response: `⭐ Starred latest email from ${data.sender}`,
+  });
+}
+if (
+  isUnreadSummaryQuery(
+    message
+  )
+) {
+  const data =
+    extractUnreadSummary(
+      message
+    );
+
+  const summary =
+    await summarizeUnreadEmails(
+      data.count
+    );
+
+  return Response.json({
+    source:
+      "gmail-summary",
+    response: summary,
+  });
+}
+if (isEmailSearchQuery(message)) {
+    console.log("INSIDE BLOCK");
+  const searchData =
+    await extractEmailSearch(message);
+  console.log(
+    "QUERY:",
+    searchData.query
+  );
+  const emails =
+    await searchEmails(
+      searchData.query
+    );
+
+  const tenant =
+    corsair.withTenant("default");
+  const detailedEmails =
+    await Promise.all(
+      (emails.messages ?? []).map(
+        (email) =>
+          tenant.gmail.api.messages.get({
+            id: email.id!,
+          })
+      )
+    );
+
+  return Response.json({
+    source: "gmail-search",
+    response: `Found ${detailedEmails.length} emails`,
+    emails: detailedEmails,
+  });
+}
+if (
+  isUnreadSummaryQuery(
+    message
+  )
+) {
+  const data =
+    extractUnreadSummary(
+      message
+    );
+
+  const summary =
+    await summarizeUnreadEmails(
+      data.count
+    );
+
+  return Response.json({
+    source:
+      "gmail-summary",
+    response: summary,
+  });
+}
     // =========================
     // GMAIL FLOW
     // =========================

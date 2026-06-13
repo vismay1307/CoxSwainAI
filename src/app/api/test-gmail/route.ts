@@ -1,15 +1,16 @@
 import { corsair } from "@/server/corsair";
 
 export async function GET() {
-  const tenant = corsair.withTenant("default");
+  const tenant =
+    corsair.withTenant("default");
 
-  // Cursor ko send ke baad hover karna
-  type SendInput =
-    Parameters<
-      typeof tenant.gmail.api.messages.send
-    >[0];
+  const email =
+    await tenant.gmail.api.messages.get({
+      id:
+        "19ebf13e6743b0d3",
+    });
 
-  return Response.json({
-    ok: true,
-  });
+  console.log(email);
+
+  return Response.json(email);
 }
