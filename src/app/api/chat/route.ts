@@ -49,12 +49,30 @@ import { extractUnreadSummary } from "@/lib/ai/extractUnreadSummary";
 import { isReplyEmailQuery } from "@/lib/ai/isReplyEmailQuery";
 import { extractReplyEmail } from "@/lib/ai/extractReplyEmail";
 import { replyToEmail } from "@/lib/gmail/replyToEmail";
-
-
+import { isUpcomingEventsQuery } from "@/lib/ai/isUpcomingEventsQuery";
+import { getUpcomingEvents } from "@/lib/calendar/getUpcomingEvents";
+import { extractEventDateRange } from "@/lib/ai/extractEventDateRange";
+import { isEventDateRangeQuery } from "@/lib/ai/isEventDateRangeQuery";
+import { isDeleteEventQuery } from "@/lib/ai/isDeleteEventQuery";
+import { extractDeleteEvent } from "@/lib/ai/extractDeleteEvent";
+import { deleteEvent } from "@/lib/calendar/deleteEvent";
+import { searchEvents } from "@/lib/calendar/searchEvents";
+import { isUpdateEventQuery } from "@/lib/ai/isUpdateEventQuery";
+import { extractUpdateEvent } from "@/lib/ai/extractUpdateEvent";
+import { updateEvent } from "@/lib/calendar/updateEvent";
+import { isAddAttendeeQuery } from "@/lib/ai/isAddAttendeeQuery";
+import { extractAttendee } from "@/lib/ai/extractAttendee";
+import { addAttendee } from "@/lib/calendar/addAttendee";
+import { isScheduleSummaryQuery } from "@/lib/ai/isScheduleSummaryQuery";
+import { isMeetingCountQuery } from "@/lib/ai/isMeetingCountQuery";
+import { getWeekEvents } from "@/lib/calendar/getWeekEvents";
+import { isBusiestDayQuery } from "@/lib/ai/isBusiestDayQuery";
+import { checkConflict } from "@/lib/calendar/checkConflict";
 
 
 export async function POST(req: Request) {
   try {
+
     const { message } = await req.json();
 
 const {
@@ -489,21 +507,46 @@ return Response.json({
   response: content,
 });
 }          
-    if (isCreateEventQuery) {
-      const eventData = await extractEvent(message);
-      const event = await createEvent(
-        eventData.title,
-        eventData.start,
-        eventData.end,
-      );
+if (isCreateEventQuery) {
+  const eventData =
+    await extractEvent(
+      message
+    );
+console.log(
+  "EVENT DATA:",
+  eventData
+);
+  const conflict =
+    await checkConflict(
+      eventData.start,
+      eventData.end
+    );
 
-      return Response.json({
-        source: "calendar-create",
-        response: `✅ ${eventData.title} scheduled successfully`,
-        event,
-      });
-    }
+  if (conflict) {
+    return Response.json({
+      source:
+        "calendar-conflict",
 
+      response: `❌ Conflict detected with "${conflict.summary}"`,
+    });
+  }
+
+  const event =
+    await createEvent(
+      eventData.title,
+      eventData.start,
+      eventData.end
+    );
+
+  return Response.json({
+    source:
+      "calendar-create",
+
+    response: `✅ ${eventData.title} scheduled successfully`,
+
+    event,
+  });
+}
     if (isDraftEmailQuery(message)) {
   const draft =
     await generateDraftEmail(
@@ -726,7 +769,59 @@ if (isEmailSearchQuery(message)) {
     emails: detailedEmails,
   });
 }
+if (
+  isAddAttendeeQuery(
+    message
+  )
+) {
+  const data =
+    extractAttendee(
+      message
+    );
 
+  const events =
+    await getUpcomingEvents(
+      50
+    );
+
+  const event =
+    events.find(
+      (e) =>
+        e.summary
+          ?.toLowerCase()
+          .includes(
+            data.title.toLowerCase()
+          )
+    );
+
+  if (
+    !event?.id ||
+    !data.email
+  ) {
+    return Response.json({
+      source:
+        "calendar-attendee",
+      response:
+        "❌ Event or email not found",
+    });
+  }
+
+  await addAttendee(
+    event.id,
+    event.summary ?? "",
+    event.start?.dateTime ??
+      "",
+    event.end?.dateTime ??
+      "",
+    data.email
+  );
+
+  return Response.json({
+    source:
+      "calendar-attendee",
+    response: `✅ Added ${data.email} to ${event.summary}`,
+  });
+}
     // =========================
     // GMAIL FLOW
     // =========================
@@ -755,6 +850,316 @@ if (isEmailSearchQuery(message)) {
       });
     }
 
+    if (
+  isUpdateEventQuery(
+    message
+  )
+) {
+  const data =
+    await extractUpdateEvent(
+      message
+    );
+
+  const events =
+    await getUpcomingEvents(
+      50
+    );
+
+  const event =
+    events.find(
+      (e) =>
+        e.summary
+          ?.toLowerCase()
+          .includes(
+            data.title.toLowerCase()
+          )
+    );
+
+  if (!event?.id) {
+    return Response.json({
+      source:
+        "calendar-update",
+      response:
+        "❌ Event not found",
+    });
+  }
+
+  await updateEvent(
+    event.id,
+    data.title,
+    data.start,
+    data.end
+  );
+
+  return Response.json({
+    source:
+      "calendar-update",
+    response: `✅ Updated event: ${data.title}`,
+  });
+}
+if (
+  isDeleteEventQuery(
+    message
+  )
+) {
+  const data =
+    extractDeleteEvent(
+      message
+    );
+
+  const events =
+    await getUpcomingEvents(
+      50
+    );
+
+  const event =
+    events.find(
+      (e) =>
+        e.summary
+          ?.toLowerCase()
+          .includes(
+            data.title.toLowerCase()
+          )
+    );
+
+  if (!event?.id) {
+    return Response.json({
+      source:
+        "calendar-delete",
+      response:
+        "❌ Event not found",
+    });
+  }
+
+  await deleteEvent(
+    event.id
+  );
+
+  return Response.json({
+    source:
+      "calendar-delete",
+    response: `✅ Deleted event: ${event.summary}`,
+  });
+}
+if (
+  isEventDateRangeQuery(
+    message
+  )
+) {
+  const range =
+    await extractEventDateRange(
+      message
+    );
+
+  const events =
+    await searchEvents(
+      range.startDate,
+      range.endDate
+    );
+
+  const result =
+    await generateText({
+      model: google(
+        "gemini-2.5-flash"
+      ),
+
+      prompt: `
+User asked:
+${message}
+
+Events:
+${JSON.stringify(
+  events,
+  null,
+  2
+)}
+
+Show:
+1. Event Title
+2. Date
+3. Time
+
+Format nicely.
+`,
+    });
+
+  return Response.json({
+    source:
+      "calendar-search",
+    response:
+      result.text,
+  });
+}
+if (
+  isBusiestDayQuery(
+    message
+  )
+) {
+  const events =
+    await getWeekEvents();
+
+  const dayCount:
+    Record<
+      string,
+      number
+    > = {};
+
+  events.forEach(
+    (event) => {
+      const date =
+        event.start?.dateTime ??
+        event.start?.date;
+
+      if (!date) return;
+
+      const day =
+        new Date(
+          date
+        ).toLocaleDateString(
+          "en-US",
+          {
+            weekday:
+              "long",
+          }
+        );
+
+      dayCount[day] =
+        (dayCount[
+          day
+        ] ?? 0) + 1;
+    }
+  );
+
+  let busiestDay =
+    "";
+
+  let max = 0;
+
+  Object.entries(
+    dayCount
+  ).forEach(
+    ([day, count]) => {
+      if (
+        count > max
+      ) {
+        max = count;
+        busiestDay =
+          day;
+      }
+    }
+  );
+
+  return Response.json({
+    source:
+      "calendar-busiest",
+    response: `${busiestDay} is your busiest day with ${max} meetings.`,
+  });
+}
+if (
+  isMeetingCountQuery(
+    message
+  )
+) {
+const events =
+  await getWeekEvents();
+
+  return Response.json({
+    source:
+      "calendar-count",
+    response: `You have ${events.length} meetings this week.`,
+  });
+}
+
+if (
+  isScheduleSummaryQuery(
+    message
+  )
+) {
+const events =
+  await getUpcomingEvents(
+    50
+  );
+
+  const result =
+    await generateText({
+      model: google(
+        "gemini-2.5-flash"
+      ),
+
+      prompt: `
+You are an AI calendar assistant.
+
+User asked:
+${message}
+
+Calendar Events:
+${JSON.stringify(
+  events,
+  null,
+  2
+)}
+
+Provide:
+
+1. Schedule summary
+2. Important meetings
+3. Free time observations
+4. Busiest day if applicable
+
+Format nicely.
+`,
+    });
+
+  return Response.json({
+    source:
+      "calendar-summary",
+    response:
+      result.text,
+  });
+}
+if (
+  isUpcomingEventsQuery(
+    message
+  )
+) {
+  const events =
+    await getUpcomingEvents(
+      10
+    );
+
+  const result =
+    await generateText({
+      model: google(
+        "gemini-2.5-flash"
+      ),
+
+      prompt: `
+User asked:
+${message}
+
+Upcoming Events:
+${JSON.stringify(
+  events,
+  null,
+  2
+)}
+
+Show:
+1. Event Title
+2. Date
+3. Time
+
+Format nicely.
+`,
+    });
+
+  return Response.json({
+    source:
+      "calendar-upcoming",
+    response:
+      result.text,
+  });
+}
     // =========================
     // CALENDAR FLOW
     // =========================

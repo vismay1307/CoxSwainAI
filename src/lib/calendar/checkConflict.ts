@@ -1,0 +1,44 @@
+import { getWeekEvents } from "./getWeekEvents";
+
+export async function checkConflict(
+  start: string,
+  end: string
+) {
+  const events =
+    await getWeekEvents();
+
+  const newStart =
+    new Date(start);
+
+  const newEnd =
+    new Date(end);
+
+  const conflict =
+    events.find((event) => {
+      const eventStart =
+        event.start?.dateTime;
+
+      const eventEnd =
+        event.end?.dateTime;
+
+      if (
+        !eventStart ||
+        !eventEnd
+      ) {
+        return false;
+      }
+
+      return (
+        newStart <
+          new Date(
+            eventEnd
+          ) &&
+        newEnd >
+          new Date(
+            eventStart
+          )
+      );
+    });
+
+  return conflict;
+}
