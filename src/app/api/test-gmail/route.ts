@@ -10,6 +10,7 @@ export async function GET() {
         "19ebf13e6743b0d3",
     });
 
+
   console.log(email);
 
   return Response.json(email);

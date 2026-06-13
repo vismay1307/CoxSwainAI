@@ -46,6 +46,12 @@ import { generateDraftEmail } from "@/lib/ai/generateDraftEmail";
 import { isUnreadSummaryQuery } from "@/lib/ai/isUnreadSummaryQuery";
 import { summarizeUnreadEmails } from "@/lib/gmail/summarizeUnreadEmails";
 import { extractUnreadSummary } from "@/lib/ai/extractUnreadSummary";
+import { isReplyEmailQuery } from "@/lib/ai/isReplyEmailQuery";
+import { extractReplyEmail } from "@/lib/ai/extractReplyEmail";
+import { replyToEmail } from "@/lib/gmail/replyToEmail";
+
+
+
 
 export async function POST(req: Request) {
   try {
@@ -509,6 +515,87 @@ return Response.json({
     response: draft,
   });
 }
+if (
+  isReplyEmailQuery(
+    message
+  )
+) {
+  const data =
+    extractReplyEmail(
+      message
+    );
+
+  const emails =
+    await searchEmails(
+      `from:${data.sender}`,
+      1
+    );
+
+  const latestEmail =
+    emails.messages?.[0];
+
+  if (!latestEmail?.id) {
+    return Response.json({
+      source: "gmail-reply",
+      response:
+        "❌ No matching email found",
+    });
+  }
+
+  const tenant =
+    corsair.withTenant("default");
+
+  const email =
+    await tenant.gmail.api.messages.get({
+      id: latestEmail.id,
+      format: "full",
+    });
+
+  const headers =
+    email.payload?.headers ?? [];
+
+  const from =
+    headers.find(
+      (h) =>
+        h.name?.toLowerCase() ===
+        "from"
+    )?.value;
+
+  const subject =
+    headers.find(
+      (h) =>
+        h.name?.toLowerCase() ===
+        "subject"
+    )?.value ?? "";
+
+  const emailMatch =
+    from?.match(
+      /<(.+?)>/
+    );
+
+  const recipient =
+    emailMatch?.[1];
+
+  if (!recipient) {
+    return Response.json({
+      source: "gmail-reply",
+      response:
+        "❌ Could not determine recipient",
+    });
+  }
+
+  await replyToEmail(
+    recipient,
+    subject,
+    data.reply!,
+    email.threadId!
+  );
+
+  return Response.json({
+    source: "gmail-reply",
+    response: `✅ Replied to latest email from ${data.sender}`,
+  });
+}
     if (isSendEmailQuery) {
       const emailData = await extractEmail(message);
 
@@ -639,27 +726,7 @@ if (isEmailSearchQuery(message)) {
     emails: detailedEmails,
   });
 }
-if (
-  isUnreadSummaryQuery(
-    message
-  )
-) {
-  const data =
-    extractUnreadSummary(
-      message
-    );
 
-  const summary =
-    await summarizeUnreadEmails(
-      data.count
-    );
-
-  return Response.json({
-    source:
-      "gmail-summary",
-    response: summary,
-  });
-}
     // =========================
     // GMAIL FLOW
     // =========================
