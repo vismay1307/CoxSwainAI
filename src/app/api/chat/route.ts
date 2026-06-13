@@ -22,6 +22,17 @@ import { isGithubCommentQuery } from "@/lib/ai/isGithubCommentQuery";
 import { starRepo } from "@/lib/github/starRepo";
 import { isGithubStarQuery } from "@/lib/ai/isGithubStarQuery";
 import { extractGithubRepo } from "@/lib/ai/extractGithubRepo";
+import { listPullRequests } from "@/lib/github/listPullRequests";
+import { isGithubPullRequestQuery } from "@/lib/ai/isGithubPullRequestQuery";
+import { listBranches } from "@/lib/github/listBranches";
+import { isGithubBranchesQuery } from "@/lib/ai/isGithubBranchesQuery";
+import { listCommits } from "@/lib/github/listCommits";
+import { isGithubCommitsQuery } from "@/lib/ai/isGithubCommitsQuery";
+import { getFileContent } from "@/lib/github/getFileContent";
+import { isGithubFileQuery } from "@/lib/ai/isGithubFileQuery";
+import { extractGithubFile } from "@/lib/ai/extractGithubFile";
+
+
 
 
 export async function POST(req: Request) {
@@ -264,6 +275,202 @@ if (isGithubListIssuesQuery(message)) {
     issues,
   });
 }
+if (isGithubPullRequestQuery(message)) {
+  const repoData =
+    await extractGithubRepo(message);
+
+  if (!repoData.repo) {
+    return Response.json({
+      source: "github-prs",
+      response:
+        "❌ Repository name not found",
+    });
+  }
+
+  const repo = await findRepo(
+    repoData.repo
+  );
+
+  if (!repo) {
+    return Response.json({
+      source: "github-prs",
+      response: `❌ Repository ${repoData.repo} not found`,
+    });
+  }
+
+  const owner =
+    repo.owner?.login ??
+    (typeof repo.owner === "string"
+      ? repo.owner
+      : undefined);
+
+  if (!owner) {
+    return Response.json({
+      source: "github-prs",
+      response:
+        "❌ Could not determine repository owner",
+    });
+  }
+
+  const prs =
+    await listPullRequests(
+      owner,
+      repoData.repo
+    );
+
+  return Response.json({
+    source: "github-prs",
+    response: `Found ${prs.length} pull requests`,
+    prs,
+  });
+}  
+if (isGithubBranchesQuery(message)) {
+  const repoData =
+    await extractGithubRepo(message);
+
+  if (!repoData.repo) {
+    return Response.json({
+      source: "github-branches",
+      response:
+        "❌ Repository name not found",
+    });
+  }
+
+  const repo = await findRepo(
+    repoData.repo
+  );
+
+  if (!repo) {
+    return Response.json({
+      source: "github-branches",
+      response: `❌ Repository ${repoData.repo} not found`,
+    });
+  }
+
+  const owner =
+    repo.owner?.login ??
+    (typeof repo.owner === "string"
+      ? repo.owner
+      : undefined);
+
+  if (!owner) {
+    return Response.json({
+      source: "github-branches",
+      response:
+        "❌ Could not determine repository owner",
+    });
+  }
+
+  const branches =
+    await listBranches(
+      owner,
+      repoData.repo
+    );
+
+  return Response.json({
+    source: "github-branches",
+    response: `Found ${branches.length} branches`,
+    branches,
+  });
+}  
+if (isGithubCommitsQuery(message)) {
+  const repoData =
+    await extractGithubRepo(message);
+
+  if (!repoData.repo) {
+    return Response.json({
+      source: "github-commits",
+      response:
+        "❌ Repository name not found",
+    });
+  }
+
+  const repo = await findRepo(
+    repoData.repo
+  );
+
+  if (!repo) {
+    return Response.json({
+      source: "github-commits",
+      response: `❌ Repository ${repoData.repo} not found`,
+    });
+  }
+
+  const owner =
+    repo.owner?.login ??
+    (typeof repo.owner === "string"
+      ? repo.owner
+      : undefined);
+
+  if (!owner) {
+    return Response.json({
+      source: "github-commits",
+      response:
+        "❌ Could not determine repository owner",
+    });
+  }
+
+  const commits =
+    await listCommits(
+      owner,
+      repoData.repo
+    );
+
+  return Response.json({
+    source: "github-commits",
+    response: `Found ${commits.length} commits`,
+    commits,
+  });
+} 
+if (isGithubFileQuery(message)) {
+  const fileData =
+    extractGithubFile(message);
+
+  if (!fileData.repo) {
+    return Response.json({
+      source: "github-file",
+      response:
+        "❌ Repository name not found",
+    });
+  }
+
+  const repo = await findRepo(
+    fileData.repo
+  );
+
+  if (!repo) {
+    return Response.json({
+      source: "github-file",
+      response: `❌ Repository ${fileData.repo} not found`,
+    });
+  }
+
+  const owner =
+    repo.owner?.login ??
+    (typeof repo.owner === "string"
+      ? repo.owner
+      : undefined);
+
+  if (!owner) {
+    return Response.json({
+      source: "github-file",
+      response:
+        "❌ Could not determine repository owner",
+    });
+  }
+
+const content =
+  await getFileContent(
+    owner,
+    fileData.repo,
+    fileData.path
+  );
+
+return Response.json({
+  source: "github-file",
+  response: content,
+});
+}          
     if (isCreateEventQuery) {
       const eventData = await extractEvent(message);
       const event = await createEvent(

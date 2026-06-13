@@ -3,7 +3,7 @@ export async function extractGithubRepo(
 ) {
   const repoMatch =
     message.match(
-      /repository\s+([^\n]+)/i
+      /(?:repository|repo|in|from)\s+([A-Za-z0-9._-]+)/i
     );
 
   return {
