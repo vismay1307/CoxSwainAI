@@ -527,7 +527,7 @@ console.log(
       source:
         "calendar-conflict",
 
-      response: `❌ Conflict detected with "${conflict.summary}"`,
+      response: `❌ Conflict detected with "${conflict.data?.summary}"`,
     });
   }
 
@@ -1007,8 +1007,8 @@ if (
   events.forEach(
     (event) => {
       const date =
-        event.start?.dateTime ??
-        event.start?.date;
+        event.data?.start?.dateTime ??
+        event.data?.start?.date;
 
       if (!date) return;
 

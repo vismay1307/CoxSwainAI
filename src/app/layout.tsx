@@ -1,6 +1,9 @@
-
-
 import "./globals.css";
+
+import { ClerkProvider } from "@clerk/nextjs";
+
+import { TRPCProvider }
+  from "@/trpc/provider";
 
 export default function RootLayout({
   children,
@@ -8,8 +11,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body>{children}</body>
-    </html>
+    <ClerkProvider>
+      <html lang="en">
+        <body>
+          <TRPCProvider>
+            {children}
+          </TRPCProvider>
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }

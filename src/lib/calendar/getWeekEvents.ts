@@ -4,28 +4,15 @@ export async function getWeekEvents() {
   const tenant =
     corsair.withTenant("default");
 
-  const now = new Date();
-
-  const weekEnd =
-    new Date(now);
-
-  weekEnd.setDate(
-    now.getDate() + 7
-  );
-
   const events =
-    await tenant.googlecalendar.api.events.getMany({
-      timeMin:
-        now.toISOString(),
-
-      timeMax:
-        weekEnd.toISOString(),
-
-      singleEvents: true,
-
-      timeZone:
-        "Asia/Kolkata",
+    await tenant.googlecalendar.db.events.list({
+      limit: 1,
     });
 
-  return events.items ?? [];
+  console.log(
+    "DB EVENT SAMPLE:",
+    JSON.stringify(events[0], null, 2)
+  );
+
+  return events;
 }

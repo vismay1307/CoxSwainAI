@@ -16,10 +16,10 @@ export async function checkConflict(
   const conflict =
     events.find((event) => {
       const eventStart =
-        event.start?.dateTime;
+  event.data?.start?.dateTime;
 
-      const eventEnd =
-        event.end?.dateTime;
+const eventEnd =
+  event.data?.end?.dateTime;
 
       if (
         !eventStart ||
