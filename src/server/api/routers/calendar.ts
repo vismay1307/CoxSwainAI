@@ -12,7 +12,7 @@ export const calendarRouter =
   createTRPCRouter({
     weekEvents:
       publicProcedure.query(async () => {
-        return getWeekEvents();
+        return getWeekEvents("default");
       }),
 
     createEvent:

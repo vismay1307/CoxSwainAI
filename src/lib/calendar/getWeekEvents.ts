@@ -1,8 +1,10 @@
 import { corsair } from "@/server/corsair";
 
-export async function getWeekEvents() {
+export async function getWeekEvents(
+  tenantId: string
+) {
   const tenant =
-    corsair.withTenant("default");
+  corsair.withTenant(tenantId)
 
   const events =
     await tenant.googlecalendar.db.events.list({

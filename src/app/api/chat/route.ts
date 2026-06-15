@@ -68,11 +68,22 @@ import { isMeetingCountQuery } from "@/lib/ai/isMeetingCountQuery";
 import { getWeekEvents } from "@/lib/calendar/getWeekEvents";
 import { isBusiestDayQuery } from "@/lib/ai/isBusiestDayQuery";
 import { checkConflict } from "@/lib/calendar/checkConflict";
-
+import { auth } from "@clerk/nextjs/server";
 
 export async function POST(req: Request) {
   try {
+const { userId } = await auth();
 
+if (!userId) {
+  return Response.json(
+    {
+      response: "Please sign in first",
+    },
+    {
+      status: 401,
+    }
+  );
+}
     const { message } = await req.json();
 
 const {
@@ -826,8 +837,15 @@ if (
     // GMAIL FLOW
     // =========================
     if (isEmailQuery) {
-      const emailDetails = await readEmails(5);
-
+      await readEmails(
+  userId,
+  5
+);
+const emailDetails =
+  await readEmails(
+    userId,
+    5
+  );
       const result = await generateText({
         model: google("gemini-2.5-flash"),
         prompt: `
@@ -996,7 +1014,7 @@ if (
   )
 ) {
   const events =
-    await getWeekEvents();
+    await getWeekEvents(userId);
 
   const dayCount:
     Record<
@@ -1061,7 +1079,7 @@ if (
   )
 ) {
 const events =
-  await getWeekEvents();
+  await getWeekEvents(userId);
 
   return Response.json({
     source:

@@ -1,10 +1,11 @@
 import { corsair } from "@/server/corsair";
 
 export async function readEmails(
+  tenantId: string,
   maxResults = 5
 ) {
-  const tenant =
-    corsair.withTenant("default");
+ const tenant =
+  corsair.withTenant(tenantId);
 
   const emails =
     await tenant.gmail.db.messages.list({

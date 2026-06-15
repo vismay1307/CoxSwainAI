@@ -4,8 +4,10 @@ export async function checkConflict(
   start: string,
   end: string
 ) {
-  const events =
-    await getWeekEvents();
+const events =
+  await getWeekEvents(
+    "default"
+  );
 
   const newStart =
     new Date(start);
