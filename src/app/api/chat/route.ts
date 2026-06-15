@@ -838,12 +838,12 @@ if (
     // =========================
     if (isEmailQuery) {
       await readEmails(
-  userId,
+  "default",
   5
 );
 const emailDetails =
   await readEmails(
-    userId,
+    "default",
     5
   );
       const result = await generateText({
@@ -1014,7 +1014,9 @@ if (
   )
 ) {
   const events =
-    await getWeekEvents(userId);
+    await getWeekEvents(
+  "default"
+)
 
   const dayCount:
     Record<
@@ -1079,7 +1081,9 @@ if (
   )
 ) {
 const events =
-  await getWeekEvents(userId);
+  await getWeekEvents(
+  "default"
+)
 
   return Response.json({
     source:
