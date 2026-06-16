@@ -1,9 +1,11 @@
 import { corsair } from "@/server/corsair";
 
 export async function findRepo(
+  userId:string,
   repoName: string
 ) {
-  const tenant = corsair.withTenant("default");
+  const tenant=
+  corsair.withTenant(userId)
 
   const repos =
     await tenant.github.api.repositories.list({});

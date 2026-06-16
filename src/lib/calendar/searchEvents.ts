@@ -1,11 +1,12 @@
 import { corsair } from "@/server/corsair";
 
 export async function searchEvents(
+  userId:string,
   startDate: string,
   endDate: string
 ) {
   const tenant =
-    corsair.withTenant("default");
+   corsair.withTenant(userId)
 
   const events =
     await tenant.googlecalendar.api.events.getMany({

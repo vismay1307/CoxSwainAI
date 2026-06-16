@@ -2,12 +2,13 @@ import { corsair } from "@/server/corsair";
 import { createRawEmail } from "@/lib/utils/createRawEmail";
 
 export async function createDraft(
+  tenantId: string,
   to: string,
   subject: string,
   body: string
 ) {
   const tenant =
-    corsair.withTenant("default");
+    corsair.withTenant(tenantId);
 
   const raw =
     createRawEmail(

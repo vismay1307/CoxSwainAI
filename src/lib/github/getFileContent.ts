@@ -1,11 +1,13 @@
 import { corsair } from "@/server/corsair";
 
 export async function getFileContent(
+  userId:string,
   owner: string,
   repo: string,
   path: string
 ) {
-  const tenant = corsair.withTenant("default");
+  const tenant=
+  corsair.withTenant(userId)
 
   const file =
     await tenant.github.api.repositories.getContent({

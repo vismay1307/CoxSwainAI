@@ -1,8 +1,8 @@
 import { z } from "zod";
 
 import { createTRPCRouter } from "../trpc";
-import { publicProcedure } from "../trpc";
 
+import { protectedProcedure } from "../trpc";
 import { getWeekEvents } from "@/lib/calendar/getWeekEvents";
 import { createEvent } from "@/lib/calendar/createEvent";
 import { updateEvent } from "@/lib/calendar/updateEvent";
@@ -11,12 +11,16 @@ import { deleteEvent } from "@/lib/calendar/deleteEvent";
 export const calendarRouter =
   createTRPCRouter({
     weekEvents:
-      publicProcedure.query(async () => {
-        return getWeekEvents("default");
-      }),
+      protectedProcedure.query(
+        async ({ ctx }) => {
+          return getWeekEvents(
+            ctx.userId
+          );
+        }
+      ),
 
     createEvent:
-      publicProcedure
+      protectedProcedure
         .input(
           z.object({
             title: z.string(),
@@ -24,16 +28,19 @@ export const calendarRouter =
             end: z.string(),
           })
         )
-        .mutation(async ({ input }) => {
-          return createEvent(
-            input.title,
-            input.start,
-            input.end
-          );
-        }),
+        .mutation(
+          async ({ input, ctx }) => {
+            return createEvent(
+              ctx.userId,
+              input.title,
+              input.start,
+              input.end
+            );
+          }
+        ),
 
     updateEvent:
-      publicProcedure
+      protectedProcedure
         .input(
           z.object({
             eventId: z.string(),
@@ -42,25 +49,31 @@ export const calendarRouter =
             end: z.string(),
           })
         )
-        .mutation(async ({ input }) => {
-          return updateEvent(
-            input.eventId,
-            input.title,
-            input.start,
-            input.end
-          );
-        }),
+        .mutation(
+          async ({ input, ctx }) => {
+            return updateEvent(
+              ctx.userId,
+              input.eventId,
+              input.title,
+              input.start,
+              input.end
+            );
+          }
+        ),
 
     deleteEvent:
-      publicProcedure
+      protectedProcedure
         .input(
           z.object({
             eventId: z.string(),
           })
         )
-        .mutation(async ({ input }) => {
-          return deleteEvent(
-            input.eventId
-          );
-        }),
+        .mutation(
+          async ({ input, ctx }) => {
+            return deleteEvent(
+              ctx.userId,
+              input.eventId
+            );
+          }
+        ),
   });

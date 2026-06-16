@@ -1,12 +1,13 @@
 import { getWeekEvents } from "./getWeekEvents";
 
 export async function checkConflict(
+  userId:string,
   start: string,
   end: string
 ) {
 const events =
   await getWeekEvents(
-    "default"
+    userId
   );
 
   const newStart =

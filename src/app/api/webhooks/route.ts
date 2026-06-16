@@ -1,17 +1,26 @@
 import { processWebhook } from "corsair";
-
 import { corsair } from "@/server/corsair";
 
 export async function POST(
   request: Request
 ) {
-  const body =
-    await request.text();
-
   const headers =
     Object.fromEntries(
       request.headers.entries()
     );
+
+  const body =
+    request.headers
+      .get("content-type")
+      ?.includes("application/json")
+      ? await request.json()
+      : await request.text();
+
+  const tenantId =
+    new URL(request.url)
+      .searchParams.get(
+        "tenantId"
+      ) ?? undefined;
 
   const result =
     await processWebhook(
@@ -19,19 +28,11 @@ export async function POST(
       headers,
       body,
       {
-        tenantId:
-          "default",
+        tenantId,
       }
     );
 
- return new Response(
-  JSON.stringify(result),
-  {
-    status: 200,
-    headers: {
-      "Content-Type":
-        "application/json",
-    },
-  }
-);
+  return Response.json(
+    result
+  );
 }

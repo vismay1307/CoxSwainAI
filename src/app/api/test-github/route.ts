@@ -1,13 +1,12 @@
-import { corsair } from "@/server/corsair";
+// src/app/api/test-github/route.ts
+
+import { listRepos } from "@/lib/github/listRepos";
 
 export async function GET() {
-  const tenant = corsair.withTenant("default");
+  const repos =
+    await listRepos(
+      "default"
+    );
 
-  console.log(
-    tenant.github.api.repositories.getContent
-  );
-
-  return Response.json({
-    ok: true,
-  });
+  return Response.json(repos);
 }

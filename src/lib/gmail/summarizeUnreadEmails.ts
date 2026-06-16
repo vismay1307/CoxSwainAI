@@ -4,14 +4,15 @@ import { generateText } from "ai";
 import { corsair } from "@/server/corsair";
 import { searchEmails } from "./searchEmails";
 
-export async function summarizeUnreadEmails(count: number) {
+export async function summarizeUnreadEmails(count: number,userId:string) {
   const emails =
 await searchEmails(
   "is:unread",
+  userId,
   count
 );
   const tenant =
-    corsair.withTenant("default");
+  corsair.withTenant(userId)
 
   const detailedEmails =
     await Promise.all(

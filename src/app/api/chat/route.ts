@@ -99,15 +99,19 @@ const {
 
       // EMAIL SEND
 
-      await sendEmail(data.email.to, data.email.subject, data.email.body);
+ await sendEmail(
+  userId,
+  data.email.to,
+  data.email.subject,
+  data.email.body
+);
 
-      // CALENDAR CREATE
-
-      await createEvent(
-        data.calendar.title,
-        data.calendar.start,
-        data.calendar.end,
-      );
+await createEvent(
+  userId,
+  data.calendar.title,
+  data.calendar.start,
+  data.calendar.end
+);
 
       return Response.json({
         source: "multi-action",
@@ -128,6 +132,7 @@ if (!issueData.repo) {
 }
 
 const repo = await findRepo(
+  userId,
   issueData.repo
 );
 console.timeEnd("findRepo");
@@ -149,6 +154,7 @@ if (!owner) {
 }
 
 const issue = await createIssue(
+  userId,
   owner,
   issueData.repo!,
   issueData.title ?? "New Issue",
@@ -176,6 +182,7 @@ if (isGithubCommentQuery(message)) {
   }
 
   const repo = await findRepo(
+    userId,
     commentData.repo
   );
 
@@ -202,6 +209,7 @@ if (isGithubCommentQuery(message)) {
 
   const comment =
     await createComment(
+      userId,
       owner,
       commentData.repo,
       commentData.issueNumber,
@@ -226,6 +234,7 @@ if (isGithubStarQuery(message)) {
   }
 
   const repo = await findRepo(
+    userId,
     repoData.repo
   );
 
@@ -251,6 +260,7 @@ if (isGithubStarQuery(message)) {
   }
 
   await starRepo(
+    userId,
     owner,
     repoData.repo
   );
@@ -261,7 +271,7 @@ if (isGithubStarQuery(message)) {
   });
 }
 if (isGithubRepoQuery(message)) {
-  const repos = await listRepos();
+  const repos = await listRepos(userId);
 
   const repoNames = repos.map((repo: any) => ({
     name: repo.name,
@@ -287,6 +297,7 @@ if (isGithubListIssuesQuery(message)) {
   }
 
   const repo = await findRepo(
+    userId,
     issueData.repo
   );
 
@@ -312,6 +323,7 @@ if (isGithubListIssuesQuery(message)) {
   }
 
   const issues = await listIssues(
+    userId,
     owner,
     issueData.repo
   );
@@ -334,7 +346,7 @@ if (isGithubPullRequestQuery(message)) {
     });
   }
 
-  const repo = await findRepo(
+  const repo = await findRepo(userId,
     repoData.repo
   );
 
@@ -361,6 +373,7 @@ if (isGithubPullRequestQuery(message)) {
 
   const prs =
     await listPullRequests(
+      userId,
       owner,
       repoData.repo
     );
@@ -383,7 +396,7 @@ if (isGithubBranchesQuery(message)) {
     });
   }
 
-  const repo = await findRepo(
+  const repo = await findRepo(userId,
     repoData.repo
   );
 
@@ -409,7 +422,7 @@ if (isGithubBranchesQuery(message)) {
   }
 
   const branches =
-    await listBranches(
+    await listBranches(userId,
       owner,
       repoData.repo
     );
@@ -432,7 +445,7 @@ if (isGithubCommitsQuery(message)) {
     });
   }
 
-  const repo = await findRepo(
+  const repo = await findRepo(userId,
     repoData.repo
   );
 
@@ -459,6 +472,7 @@ if (isGithubCommitsQuery(message)) {
 
   const commits =
     await listCommits(
+      userId,
       owner,
       repoData.repo
     );
@@ -481,7 +495,7 @@ if (isGithubFileQuery(message)) {
     });
   }
 
-  const repo = await findRepo(
+  const repo = await findRepo(userId,
     fileData.repo
   );
 
@@ -507,7 +521,7 @@ if (isGithubFileQuery(message)) {
   }
 
 const content =
-  await getFileContent(
+  await getFileContent(userId,
     owner,
     fileData.repo,
     fileData.path
@@ -529,6 +543,7 @@ console.log(
 );
   const conflict =
     await checkConflict(
+      userId,
       eventData.start,
       eventData.end
     );
@@ -544,6 +559,7 @@ console.log(
 
   const event =
     await createEvent(
+      userId,
       eventData.title,
       eventData.start,
       eventData.end
@@ -581,6 +597,7 @@ if (
 
   const emails =
     await searchEmails(
+      userId,
       `from:${data.sender}`,
       1
     );
@@ -597,7 +614,7 @@ if (
   }
 
   const tenant =
-    corsair.withTenant("default");
+    corsair.withTenant(userId);
 
   const email =
     await tenant.gmail.api.messages.get({
@@ -639,6 +656,7 @@ if (
   }
 
   await replyToEmail(
+    userId,
     recipient,
     subject,
     data.reply!,
@@ -658,6 +676,7 @@ if (
       }
 
       const result = await sendEmail(
+        userId,
         emailData.to,
         emailData.subject,
         emailData.body,
@@ -675,6 +694,7 @@ if (isMarkReadQuery(message)) {
 
   const emails =
     await searchEmails(
+      userId,
       `from:${data.sender}`
     );
 
@@ -690,6 +710,7 @@ if (isMarkReadQuery(message)) {
   }
 
   await markEmailRead(
+    userId,
     latestEmail.id
   );
 
@@ -705,6 +726,7 @@ if (isStarEmailQuery(message)) {
 
   const emails =
     await searchEmails(
+      userId,
       `from:${data.sender}`
     );
 
@@ -713,13 +735,14 @@ if (isStarEmailQuery(message)) {
 
   if (!latestEmail?.id) {
     return Response.json({
-      source: "gmail-star",
+      source: "gmail-star",  
       response:
         "❌ No matching email found",
     });
   }
 
   await starEmail(
+    userId,
     latestEmail.id
   );
 
@@ -740,7 +763,9 @@ if (
 
   const summary =
     await summarizeUnreadEmails(
-      data.count
+
+      data.count,
+      userId
     );
 
   return Response.json({
@@ -759,11 +784,12 @@ if (isEmailSearchQuery(message)) {
   );
   const emails =
     await searchEmails(
+      userId,
       searchData.query
     );
 
   const tenant =
-    corsair.withTenant("default");
+    corsair.withTenant(userId);
   const detailedEmails =
     await Promise.all(
       (emails.messages ?? []).map(
@@ -792,6 +818,7 @@ if (
 
   const events =
     await getUpcomingEvents(
+      userId,
       50
     );
 
@@ -818,6 +845,7 @@ if (
   }
 
   await addAttendee(
+    userId,
     event.id,
     event.summary ?? "",
     event.start?.dateTime ??
@@ -838,12 +866,12 @@ if (
     // =========================
     if (isEmailQuery) {
       await readEmails(
-  "default",
+  userId,
   5
 );
 const emailDetails =
   await readEmails(
-    "default",
+    userId,
     5
   );
       const result = await generateText({
@@ -880,6 +908,7 @@ const emailDetails =
 
   const events =
     await getUpcomingEvents(
+      userId,
       50
     );
 
@@ -903,6 +932,7 @@ const emailDetails =
   }
 
   await updateEvent(
+    userId,
     event.id,
     data.title,
     data.start,
@@ -927,7 +957,7 @@ if (
 
   const events =
     await getUpcomingEvents(
-      50
+     userId, 50
     );
 
   const event =
@@ -950,6 +980,7 @@ if (
   }
 
   await deleteEvent(
+    userId,
     event.id
   );
 
@@ -971,6 +1002,7 @@ if (
 
   const events =
     await searchEvents(
+      userId,
       range.startDate,
       range.endDate
     );
@@ -1015,7 +1047,7 @@ if (
 ) {
   const events =
     await getWeekEvents(
-  "default"
+  userId
 )
 
   const dayCount:
@@ -1082,7 +1114,7 @@ if (
 ) {
 const events =
   await getWeekEvents(
-  "default"
+  userId
 )
 
   return Response.json({
@@ -1099,7 +1131,7 @@ if (
 ) {
 const events =
   await getUpcomingEvents(
-    50
+   userId, 50
   );
 
   const result =
@@ -1146,7 +1178,7 @@ if (
 ) {
   const events =
     await getUpcomingEvents(
-      10
+    userId,  10
     );
 
   const result =
@@ -1186,7 +1218,7 @@ Format nicely.
     // CALENDAR FLOW
     // =========================
     if (isCalendarQuery) {
-      const events = await readEvents(20);
+      const events = await readEvents(userId,20);
 
       const result = await generateText({
         model: google("gemini-2.5-flash"),

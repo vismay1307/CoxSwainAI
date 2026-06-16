@@ -1,19 +1,18 @@
 import { corsair } from "@/server/corsair";
 
 export async function searchEmails(
+  tenantId: string,
   query: string,
   maxResults = 10
 ) {
   const tenant =
-    corsair.withTenant("default");
+    corsair.withTenant(tenantId);
 
   const result =
     await tenant.gmail.api.messages.list({
       q: query,
       maxResults,
     });
-
-  console.log(result);
 
   return result;
 }

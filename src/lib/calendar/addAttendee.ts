@@ -1,6 +1,7 @@
 import { corsair } from "@/server/corsair";
 
 export async function addAttendee(
+  userId:string,
   eventId: string,
   eventTitle: string,
   start: string,
@@ -8,7 +9,7 @@ export async function addAttendee(
   email: string
 ) {
   const tenant =
-    corsair.withTenant("default");
+   corsair.withTenant(userId)
 
   return tenant.googlecalendar.api.events.update({
     id: eventId,

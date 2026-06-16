@@ -1,8 +1,17 @@
 import EventCard from "@/components/calendar/EventCard";
-import type { EventRecord } from "@/lib/mock-data";
+
+type CalendarEvent = {
+  id: string;
+  title: string;
+  time: string;
+  duration: string;
+  attendees: string[];
+  location: string;
+  type: string;
+};
 
 type UpcomingEventsListProps = {
-  events: EventRecord[];
+  events: CalendarEvent[];
 };
 
 export default function UpcomingEventsList({
@@ -11,7 +20,10 @@ export default function UpcomingEventsList({
   return (
     <div className="grid gap-4 xl:grid-cols-3">
       {events.map((event) => (
-        <EventCard key={event.id} event={event} />
+        <EventCard
+          key={event.id}
+          event={event}
+        />
       ))}
     </div>
   );

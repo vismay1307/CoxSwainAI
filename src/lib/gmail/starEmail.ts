@@ -1,10 +1,11 @@
 import { corsair } from "@/server/corsair";
 
 export async function starEmail(
+  tenantId: string,
   emailId: string
 ) {
   const tenant =
-    corsair.withTenant("default");
+    corsair.withTenant(tenantId);
 
   return tenant.gmail.api.messages.modify({
     id: emailId,

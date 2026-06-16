@@ -1,10 +1,11 @@
 import { corsair } from "@/server/corsair";
 
 export async function getUpcomingEvents(
+  userId:string,
   maxResults = 10
 ) {
   const tenant =
-    corsair.withTenant("default");
+   corsair.withTenant(userId)
 
   const now =
     new Date().toISOString();
