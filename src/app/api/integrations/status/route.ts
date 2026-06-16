@@ -1,17 +1,17 @@
 import { auth } from "@clerk/nextjs/server";
-import { listRepos } from "@/lib/github/listRepos";
 
 export async function GET() {
   const { userId } = await auth();
 
   if (!userId) {
     return Response.json(
-      { error: "Not signed in" },
+      { error: "Unauthorized" },
       { status: 401 }
     );
   }
 
-  const repos = await listRepos(userId);
-
-  return Response.json(repos);
+  return Response.json({
+    gmailConnected: false,
+    githubConnected: false,
+  });
 }

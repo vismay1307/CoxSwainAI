@@ -118,6 +118,7 @@ await createEvent(
         response: "✅ Email sent and calendar event created successfully",
       });
     }
+
     if (isGithubIssueQuery(message)) {
       console.time("extract");
   const issueData =
@@ -279,11 +280,22 @@ if (isGithubRepoQuery(message)) {
     url: repo.html_url,
   }));
 
-  return Response.json({
-    source: "github-repos",
-    response: `Found ${repoNames.length} repositories`,
-    repos: repoNames,
-  });
+const formattedRepos = repoNames
+  .slice(0, 10)
+  .map(
+    (repo) =>
+      `• ${repo.name}${
+        repo.owner
+          ? ` (${repo.owner})`
+          : ""
+      }`
+  )
+  .join("\n");
+
+return Response.json({
+  source: "github-repos",
+  response: `Repositories:\n\n${formattedRepos}`,
+});
 }
 if (isGithubListIssuesQuery(message)) {
   const issueData =
@@ -328,11 +340,18 @@ if (isGithubListIssuesQuery(message)) {
     issueData.repo
   );
 
-  return Response.json({
-    source: "github-issues",
-    response: `Found ${issues.length} issues`,
-    issues,
-  });
+const formattedIssues = issues
+  .slice(0, 10)
+  .map(
+    (issue: any) =>
+      `#${issue.number} - ${issue.title}`
+  )
+  .join("\n");
+
+return Response.json({
+  source: "github-issues",
+  response: `Open Issues:\n\n${formattedIssues}`,
+});
 }
 if (isGithubPullRequestQuery(message)) {
   const repoData =
@@ -378,11 +397,18 @@ if (isGithubPullRequestQuery(message)) {
       repoData.repo
     );
 
-  return Response.json({
-    source: "github-prs",
-    response: `Found ${prs.length} pull requests`,
-    prs,
-  });
+const formattedPRs = prs
+  .slice(0, 10)
+  .map(
+    (pr: any) =>
+      `#${pr.number} - ${pr.title}`
+  )
+  .join("\n");
+
+return Response.json({
+  source: "github-prs",
+  response: `Pull Requests:\n\n${formattedPRs}`,
+});
 }  
 if (isGithubBranchesQuery(message)) {
   const repoData =
@@ -427,11 +453,19 @@ if (isGithubBranchesQuery(message)) {
       repoData.repo
     );
 
-  return Response.json({
-    source: "github-branches",
-    response: `Found ${branches.length} branches`,
-    branches,
-  });
+ const formattedBranches =
+  branches
+    .slice(0, 20)
+    .map(
+      (branch: any) =>
+        `• ${branch.name}`
+    )
+    .join("\n");
+
+return Response.json({
+  source: "github-branches",
+  response: `Branches:\n\n${formattedBranches}`,
+});
 }  
 if (isGithubCommitsQuery(message)) {
   const repoData =
@@ -477,11 +511,26 @@ if (isGithubCommitsQuery(message)) {
       repoData.repo
     );
 
-  return Response.json({
-    source: "github-commits",
-    response: `Found ${commits.length} commits`,
-    commits,
-  });
+ const formattedCommits =
+  commits
+    .slice(0, 10)
+    .map(
+      (commit: any) =>
+        `• ${
+          commit.commit?.message ??
+          "No message"
+        }\n  by ${
+          commit.commit?.author
+            ?.name ?? "Unknown"
+        }`
+    )
+    .join("\n\n");
+
+return Response.json({
+  source: "github-commits",
+  response:
+    `Latest Commits:\n\n${formattedCommits}`,
+});
 } 
 if (isGithubFileQuery(message)) {
   const fileData =
@@ -864,37 +913,32 @@ if (
     // =========================
     // GMAIL FLOW
     // =========================
-    if (isEmailQuery) {
-      await readEmails(
-  userId,
-  5
-);
-const emailDetails =
-  await readEmails(
-    userId,
-    5
-  );
-      const result = await generateText({
-        model: google("gemini-2.5-flash"),
-        prompt: `
-  You are an AI email assistant.
-  
-  User asked:
-  ${message}
-  
-  Recent Emails:
-  ${JSON.stringify(emailDetails, null, 2)}
-  
-  Answer the user's question based only on these emails.
-  `,
-      });
+if (isEmailQuery) {
+  const emailDetails =
+    await readEmails(
+      userId,
+      10
+    );
 
-      return Response.json({
-        source: "gmail",
-        response: result.text,
-        emails: emailDetails,
-      });
-    }
+  const formattedEmails =
+    emailDetails
+      .map(
+        (email) =>
+          `• ${email.subject}\n  From: ${email.from}`
+      )
+      .join("\n\n");
+
+  return Response.json({
+    source: "gmail",
+
+    response:
+      emailDetails.length > 0
+        ? `Latest Emails\n\n${formattedEmails}`
+        : "No emails found",
+
+    emails: emailDetails,
+  });
+}
 
     if (
   isUpdateEventQuery(
@@ -1007,38 +1051,30 @@ if (
       range.endDate
     );
 
-  const result =
-    await generateText({
-      model: google(
-        "gemini-2.5-flash"
-      ),
+  const formattedEvents =
+  events
+    .map(
+      (event: any) =>
+        `• ${
+          event.summary ??
+          "Untitled Event"
+        }\n  ${
+          event.start?.dateTime ??
+          event.start?.date ??
+          ""
+        }`
+    )
+    .join("\n\n");
 
-      prompt: `
-User asked:
-${message}
+return Response.json({
+  source:
+    "calendar-search",
 
-Events:
-${JSON.stringify(
-  events,
-  null,
-  2
-)}
-
-Show:
-1. Event Title
-2. Date
-3. Time
-
-Format nicely.
-`,
-    });
-
-  return Response.json({
-    source:
-      "calendar-search",
-    response:
-      result.text,
-  });
+  response:
+    events.length > 0
+      ? `Events Found\n\n${formattedEvents}`
+      : "No events found",
+});
 }
 if (
   isBusiestDayQuery(
@@ -1178,70 +1214,69 @@ if (
 ) {
   const events =
     await getUpcomingEvents(
-    userId,  10
+      userId,
+      10
     );
 
-  const result =
-    await generateText({
-      model: google(
-        "gemini-2.5-flash"
-      ),
-
-      prompt: `
-User asked:
-${message}
-
-Upcoming Events:
-${JSON.stringify(
-  events,
-  null,
-  2
-)}
-
-Show:
-1. Event Title
-2. Date
-3. Time
-
-Format nicely.
-`,
-    });
+  const formattedEvents =
+    events
+      .map(
+        (event: any) =>
+          `• ${
+            event.summary ??
+            "Untitled Event"
+          }\n  ${
+            event.start?.dateTime ??
+            event.start?.date ??
+            ""
+          }`
+      )
+      .join("\n\n");
 
   return Response.json({
     source:
       "calendar-upcoming",
+
     response:
-      result.text,
+      events.length > 0
+        ? `Upcoming Events\n\n${formattedEvents}`
+        : "No upcoming events",
   });
 }
     // =========================
     // CALENDAR FLOW
-    // =========================
-    if (isCalendarQuery) {
-      const events = await readEvents(userId,20);
+  if (isCalendarQuery) {
+  const events =
+    await readEvents(
+      userId,
+      20
+    );
 
-      const result = await generateText({
-        model: google("gemini-2.5-flash"),
-        prompt: `
-  You are an AI calendar assistant.
-  
-  User asked:
-  ${message}
-  
-  Calendar Events:
-  ${JSON.stringify(events, null, 2)}
-  
-  Answer the user's question based only on the calendar data.
-  `,
-      });
+  const formattedEvents =
+    events
+      .slice(0, 20)
+      .map(
+        (event: any) =>
+          `• ${
+            event.summary ??
+            event.data?.summary ??
+            "Untitled Event"
+          }`
+      )
+      .join("\n");
 
-      return Response.json({
-        source: "calendar",
-        response: result.text,
-        events: events,
-      });
-    }
+  return Response.json({
+    source:
+      "calendar",
 
+    response:
+      events.length > 0
+        ? `Calendar Events\n\n${formattedEvents}`
+        : "No calendar events found",
+
+    events,
+  });
+}
     // =========================
     // FALLBACK
     // =========================

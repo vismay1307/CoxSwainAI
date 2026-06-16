@@ -2,7 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, Command, Menu, Search } from "lucide-react";
+import { Bell, Command, Menu, Search, Settings } from "lucide-react";
+import {
+  SignInButton,
+  UserButton,
+  useUser,
+} from "@clerk/nextjs";
 
 import MobileSidebar from "@/components/layout/MobileSidebar";
 import { Button } from "@/components/ui/Button";
@@ -39,62 +44,138 @@ const titles: Record<string, { title: string; subtitle: string }> = {
   },
 };
 
+// Notification data — swap with real data source when ready
+const notifications = [
+  { id: 1, text: "4 priority emails need attention" },
+  { id: 2, text: "2 pull requests are ready to merge" },
+  { id: 3, text: "Schedule conflict detected at 1 PM" },
+];
+
 export default function Header() {
   const pathname = usePathname();
+const { user, isSignedIn } =
+  useUser();
+
   const copy = titles[pathname] ?? titles["/dashboard"];
 
   return (
-    <header className="sticky top-0 z-30 border-b border-white/60 bg-background/70 backdrop-blur-xl">
-      <div className="flex flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
+    <header className="sticky top-0 z-30 border-b border-white/60 bg-background/80 backdrop-blur-xl">
+      <div className="flex flex-col gap-0 px-4 py-0 sm:px-6 lg:px-8">
+        <div className="flex h-16 items-center justify-between gap-3">
+
+          {/* ── LEFT: mobile menu + logo + page title ── */}
+          <div className="flex items-center gap-3 min-w-0">
             <MobileSidebar
               trigger={
-                <Button variant="outline" size="icon" className="lg:hidden" aria-label="Open navigation">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="lg:hidden shrink-0"
+                  aria-label="Open navigation"
+                >
                   <Menu className="size-4" />
                 </Button>
               }
             />
+
+            {/* Logo — mobile only */}
             <div className="lg:hidden">
               <Link href="/" className="flex items-center gap-2">
-                <span className="flex size-10 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-soft">
+                <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-soft">
                   <Command className="size-4" />
                 </span>
               </Link>
             </div>
-            <div>
-              <p className="text-base font-semibold tracking-tight">{copy.title}</p>
-              <p className="hidden text-sm text-muted-foreground sm:block">{copy.subtitle}</p>
+
+            {/* Page title */}
+            <div className="min-w-0">
+              <p className="text-[15px] font-semibold tracking-tight truncate">
+                {copy.title}
+              </p>
+              <p className="hidden text-xs text-muted-foreground sm:block truncate">
+                {copy.subtitle}
+              </p>
             </div>
           </div>
 
-          <div className="hidden w-full max-w-md items-center gap-2 rounded-2xl border border-white/70 bg-white/80 px-3 py-2 shadow-soft md:flex">
-            <Search className="size-4 text-muted-foreground" />
+          {/* ── CENTER: search bar ── */}
+          <div className="hidden w-full max-w-sm items-center gap-2 rounded-xl border border-white/70 bg-white/80 px-3 py-1.5 shadow-soft md:flex">
+            <Search className="size-3.5 text-muted-foreground shrink-0" />
             <Input
-              className="h-auto border-0 bg-transparent p-0 shadow-none focus-visible:ring-0"
+              className="h-auto border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0 placeholder:text-muted-foreground/60"
               placeholder="Search inbox, calendar, PRs..."
               aria-label="Search workspace"
             />
           </div>
 
-          <div className="flex items-center gap-2">
+          {/* ── RIGHT: notifications + auth ── */}
+          <div className="flex items-center gap-2 shrink-0">
+
+            {/* Notifications bell */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon" aria-label="Notifications">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="relative"
+                  aria-label="Notifications"
+                >
                   <Bell className="size-4" />
+                  {/* Unread dot */}
+                  <span className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-primary" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+              <DropdownMenuContent align="end" className="w-72">
+                <DropdownMenuLabel className="flex items-center justify-between">
+                  Notifications
+                  <span className="text-xs font-normal text-muted-foreground">
+                    {notifications.length} new
+                  </span>
+                </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>4 priority emails need attention</DropdownMenuItem>
-                <DropdownMenuItem>2 pull requests are ready to merge</DropdownMenuItem>
-                <DropdownMenuItem>One schedule conflict detected at 1 PM</DropdownMenuItem>
+                {notifications.map((n) => (
+                  <DropdownMenuItem key={n.id} className="text-sm py-2.5">
+                    <span className="size-1.5 rounded-full bg-primary shrink-0 mr-2" />
+                    {n.text}
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="text-xs text-muted-foreground justify-center">
+                  View all notifications
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <Button asChild>
-              <Link href="/sign-in">Sign in</Link>
-            </Button>
+
+            {/* ✅ FIX: Proper Clerk auth UI
+                SignedOut → Sign In button (modal, no redirect)
+                SignedIn  → UserButton (avatar + sign out built-in) */}
+            {!isSignedIn ? (
+  <SignInButton mode="modal">
+    <Button
+      size="sm"
+      className="font-medium"
+    >
+      Sign in
+    </Button>
+  </SignInButton>
+) : (
+  <>
+    {user?.firstName && (
+      <span className="hidden lg:block text-sm text-muted-foreground pr-1">
+        {user.firstName}
+      </span>
+    )}
+
+    <UserButton
+      appearance={{
+        elements: {
+          avatarBox:
+            "size-9 rounded-xl ring-2 ring-transparent hover:ring-primary/30 transition-all duration-200",
+        },
+      }}
+    />
+  </>
+)}
           </div>
         </div>
       </div>

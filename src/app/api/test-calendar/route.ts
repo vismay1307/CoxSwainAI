@@ -1,13 +1,22 @@
+import { auth } from "@clerk/nextjs/server";
 import { corsair } from "@/server/corsair";
 
 export async function GET() {
-  const tenant = corsair.withTenant("default");
+  const { userId } = await auth();
 
-  console.log(
-    Object.keys(tenant.googlecalendar.api.events)
-  );
+  if (!userId) {
+    return Response.json(
+      { error: "Not signed in" },
+      { status: 401 }
+    );
+  }
 
-  return Response.json({
-    ok: true,
-  });
+  const tenant = corsair.withTenant(userId);
+
+  const events =
+    await tenant.googlecalendar.api.events.getMany({
+      maxResults: 10,
+    });
+
+  return Response.json(events);
 }

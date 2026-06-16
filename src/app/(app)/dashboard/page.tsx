@@ -1,5 +1,5 @@
 import { ArrowUpRight, CalendarCheck2, Inbox, Sparkles, Telescope } from "lucide-react";
-
+import DashboardClient from "@/components/dashboard/DashboardClient";
 import PageContainer from "@/components/layout/PageContainer";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -9,6 +9,7 @@ import { dashboardActivities, dashboardKpis, dashboardStats, dashboardSummaries 
 export default function DashboardPage() {
   return (
     <PageContainer className="space-y-8">
+      <DashboardClient />
       <section className="grid gap-4 xl:grid-cols-4">
         {dashboardKpis.map((kpi) => (
           <Card key={kpi.label} className="bg-white">

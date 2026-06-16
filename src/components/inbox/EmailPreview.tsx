@@ -74,10 +74,6 @@ const starMutation =
   <Star className="size-4" />
 </Button>
             <Button
-              variant="outline"
-              size="icon"
-            >
-              <Button
   variant="outline"
   size="icon"
   onClick={() =>
@@ -88,7 +84,6 @@ const starMutation =
 >
   ✓
 </Button>
-            </Button>
 
             <Button size="icon">
               <Reply className="size-4" />
