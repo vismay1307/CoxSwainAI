@@ -6,11 +6,11 @@ import { searchEmails } from "./searchEmails";
 
 export async function summarizeUnreadEmails(count: number,userId:string) {
   const emails =
-await searchEmails(
-  "is:unread",
-  userId,
-  count
-);
+    await searchEmails(
+      userId,
+      "is:unread",
+      count
+    );
   const tenant =
   corsair.withTenant(userId)
 

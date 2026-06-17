@@ -19,6 +19,10 @@ type Email = {
   summary?: string;
   urgency?: "high" | "medium" | "low";
   actionRequired?: string;
+  labelIds?: string[];
+  internalDate?: string | null;
+  unread?: boolean;
+  starred?: boolean;
 };
 
 type EmailPreviewProps = {
@@ -102,6 +106,8 @@ export default function EmailPreview({
 
           <div className="mt-6 flex flex-wrap gap-2">
             <Badge variant="primary">Gmail</Badge>
+            {email.unread ? <Badge variant="outline">Unread</Badge> : null}
+            {email.starred ? <Badge variant="warning">Starred</Badge> : null}
             {email.urgency ? <Badge variant={urgencyVariant}>{email.urgency} urgency</Badge> : null}
           </div>
 
@@ -128,6 +134,17 @@ export default function EmailPreview({
 
           <div className="mt-6 flex-1 rounded-[1.5rem] bg-secondary/70 p-5">
             <p className="whitespace-pre-wrap text-sm leading-8 text-foreground">{email.snippet}</p>
+          </div>
+
+          <div className="mt-4 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
+            <div className="rounded-2xl bg-secondary/60 px-4 py-3">
+              <p className="font-medium text-foreground">Received</p>
+              <p className="mt-1">{email.internalDate ? new Date(email.internalDate).toLocaleString() : "Unknown"}</p>
+            </div>
+            <div className="rounded-2xl bg-secondary/60 px-4 py-3">
+              <p className="font-medium text-foreground">Labels</p>
+              <p className="mt-1">{email.labelIds?.length ? email.labelIds.join(", ") : "None"}</p>
+            </div>
           </div>
         </CardContent>
       </Card>

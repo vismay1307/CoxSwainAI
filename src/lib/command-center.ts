@@ -101,6 +101,10 @@ export type ClassifiedEmail = {
   summary: string;
   urgency: UrgencyLevel;
   actionRequired: string;
+  labelIds?: string[];
+  internalDate?: string | null;
+  unread?: boolean;
+  starred?: boolean;
 };
 
 export type WorkspaceCalendarEvent = {
@@ -150,6 +154,7 @@ export type ChatApiResponse = {
   commits?: Array<Record<string, unknown>>;
   branches?: Array<Record<string, unknown>>;
   draft?: string;
+  actions?: Array<Record<string, unknown>>;
 };
 
 function firstSentence(value: string) {
@@ -674,12 +679,19 @@ export function buildToolCardsFromChatResponse(
 
     cards.push(...emailCards);
   } else if (payload.source === "gmail-search" && Array.isArray(payload.emails)) {
-    cards.push({
-      title: "Search results",
-      detail: payload.response || "Search completed.",
-      metric: String(payload.emails.length),
-      tone: "gmail",
-    });
+    const emailCards = payload.emails.slice(0, 5).map((email) => ({
+      title: String((email.subject as string | undefined) ?? "Email"),
+      detail: String((email.snippet as string | undefined) ?? "No preview available."),
+      tone: "gmail" as const,
+      fields: [
+        { label: "From", value: String((email.from as string | undefined) ?? "Unknown Sender") },
+        { label: "Labels", value: Array.isArray(email.labelIds) ? email.labelIds.join(", ") || "None" : "None" },
+        { label: "Unread", value: String(Boolean(email.unread)) },
+        { label: "Starred", value: String(Boolean(email.starred)) },
+      ],
+    }));
+
+    cards.push(...emailCards);
   } else if ((payload.source === "calendar" || payload.source === "calendar-upcoming") && Array.isArray(payload.events)) {
     const eventCards = payload.events.slice(0, 3).map((event) => {
       const eventRecord = event as CalendarEventLike;
@@ -723,13 +735,19 @@ export function buildToolCardsFromChatResponse(
         tone: "github" as const,
       };
     }));
-  } else if (payload.response) {
-    cards.push({
-      title: route === "general" ? "AI response" : `${route[0].toUpperCase()}${route.slice(1)} result`,
-      detail: payload.response,
-      tone: route,
-    });
-  }
+  } else if (
+  payload.response &&
+  !payload.source?.startsWith("structured")
+) {
+  cards.push({
+    title:
+      route === "general"
+        ? "AI response"
+        : `${route[0].toUpperCase()}${route.slice(1)} result`,
+    detail: payload.response,
+    tone: route,
+  });
+}
 
   return {
     route,

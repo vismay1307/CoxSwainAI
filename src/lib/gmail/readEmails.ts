@@ -24,6 +24,7 @@ export async function readEmails(
 
   return emails.map((email) => ({
     id: email.entity_id,
+    threadId: email.data?.threadId ?? email.entity_id,
     subject:
       email.data?.subject ??
       "No Subject",
@@ -32,5 +33,15 @@ export async function readEmails(
       "Unknown Sender",
     snippet:
       email.data?.snippet ?? "",
+    labelIds:
+      email.data?.labelIds ?? [],
+    internalDate:
+      email.data?.internalDate ?? null,
+    unread: Array.isArray(email.data?.labelIds)
+      ? email.data.labelIds.includes("UNREAD")
+      : false,
+    starred: Array.isArray(email.data?.labelIds)
+      ? email.data.labelIds.includes("STARRED")
+      : false,
   }));
 }

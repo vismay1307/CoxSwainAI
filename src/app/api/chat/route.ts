@@ -5,6 +5,7 @@ import { sendEmail } from "@/lib/gmail/sendEmail";
 import { extractEmail } from "@/lib/ai/extractEmail";
 import { extractEvent } from "@/lib/ai/extractEvent";
 import { extractMultiAction } from "@/lib/ai/extractMultiAction";
+import { extractStructuredActions } from "@/lib/ai/extractStructuredActions";
 import { createIssue } from "@/lib/github/createIssue";
 import { corsair } from "@/server/corsair";
 import { listRepos } from "@/lib/github/listRepos";
@@ -69,6 +70,635 @@ import { getWeekEvents } from "@/lib/calendar/getWeekEvents";
 import { isBusiestDayQuery } from "@/lib/ai/isBusiestDayQuery";
 import { checkConflict } from "@/lib/calendar/checkConflict";
 import { auth } from "@clerk/nextjs/server";
+import { isInboxSummaryQuery } from "@/lib/ai/isInboxSummaryQuery";
+import { isUrgentEmailQuery } from "@/lib/ai/isUrgentEmailQuery";
+import { isReplyNeededQuery } from "@/lib/ai/isReplyNeededQuery";
+import { isCatchMeUpQuery } from "@/lib/ai/isCatchMeUpQuery";
+import { generateInboxIntelligence } from "@/lib/ai/generateInboxIntelligence";
+
+async function findEventByTitle(
+  userId: string,
+  title: string
+) {
+  const events = await getUpcomingEvents(
+    userId,
+    50
+  );
+
+  const normalizedTitle =
+    title.toLowerCase().trim();
+
+  return events.find(
+  (event) => {
+    const summary =
+      (
+        event.summary ??
+        ""
+      ).toLowerCase();
+
+    return (
+      summary.includes(
+        normalizedTitle
+      ) ||
+      normalizedTitle.includes(
+        summary
+      )
+    );
+  }
+  );
+}
+
+async function getLatestInboxEmail(
+  userId: string
+) {
+  const emails =
+    await searchEmails(
+      userId,
+      "in:inbox",
+      1
+    );
+
+  return emails.messages?.[0] ?? null;
+}
+
+async function executeStructuredActions(
+  userId: string,
+  message: string
+) {
+  const { actions } =
+    await extractStructuredActions(
+      message
+    );
+  console.log(
+    "STRUCTURED ACTIONS:",
+    JSON.stringify(actions, null, 2)
+  );
+
+  if (!actions.length) {
+    return null;
+  }
+
+  const tenant =
+    corsair.withTenant(userId);
+  const results: Array<{
+    action: string;
+    response: string;
+    data?: unknown;
+  }> = [];
+
+  for (
+    const action of actions
+  ) {
+    console.log("STRUCTURED ACTION", action);
+
+    if (
+      action.action ===
+      "create_event"
+    ) {
+      if (!action.start || !action.end) {
+        results.push({
+          action:
+            "create_event",
+          response:
+            "I could not determine a valid start or end time for that meeting.",
+        });
+        continue;
+      }
+
+      const event =
+        await createEvent(
+          userId,
+          action.title,
+          action.start,
+          action.end
+        );
+
+      results.push({
+        action:
+          "create_event",
+        response: `Created event: ${action.title}`,
+        data: event,
+      });
+      continue;
+    }
+
+    if (
+      action.action ===
+      "update_event"
+    ) {
+      if (!action.start || !action.end) {
+        results.push({
+          action:
+            "update_event",
+          response:
+            "I could not determine a valid start or end time for that event.",
+        });
+        continue;
+      }
+
+      const event =
+        action.eventId
+          ? {
+              id: action.eventId,
+            }
+          : await findEventByTitle(
+              userId,
+              action.title
+            );
+
+      if (!event?.id) {
+        results.push({
+          action:
+            "update_event",
+          response:
+            "Event not found",
+        });
+        continue;
+      }
+
+      const updated =
+        await updateEvent(
+          userId,
+          event.id,
+          action.title,
+          action.start,
+          action.end
+        );
+
+      results.push({
+        action:
+          "update_event",
+        response: `Updated event: ${action.title}`,
+        data: updated,
+      });
+      continue;
+    }
+
+    if (
+      action.action ===
+      "delete_event"
+    ) {
+      if (!action.title && !action.eventId) {
+        results.push({
+          action:
+            "delete_event",
+          response:
+            "I could not identify which event to delete.",
+        });
+        continue;
+      }
+
+      const event =
+        action.eventId
+          ? {
+              id: action.eventId,
+              summary: action.title,
+            }
+          : await findEventByTitle(
+              userId,
+              action.title
+            );
+
+      if (!event?.id) {
+        results.push({
+          action:
+            "delete_event",
+          response:
+            "Event not found",
+        });
+        continue;
+      }
+
+      const deleted =
+        await deleteEvent(
+          userId,
+          event.id
+        );
+
+      results.push({
+        action:
+          "delete_event",
+        response: `Deleted event: ${event.summary ?? action.title}`,
+        data: deleted,
+      });
+      continue;
+    }
+
+    if (
+      action.action ===
+      "send_email"
+    ) {
+      if (!action.to || !action.subject || !action.body) {
+        results.push({
+          action:
+            "send_email",
+          response:
+            "I could not extract a complete email payload.",
+        });
+        continue;
+      }
+
+      const sent =
+        await sendEmail(
+          userId,
+          action.to,
+          action.subject,
+          action.body
+        );
+
+      results.push({
+        action:
+          "send_email",
+        response: `Email sent to ${action.to}`,
+        data: sent,
+      });
+      continue;
+    }
+
+    if (
+      action.action ===
+      "reply_email"
+    ) {
+      const isLatest = Boolean(
+        (action as any).latest
+      );
+
+      if (!action.body) {
+        results.push({
+          action:
+            "reply_email",
+          response:
+            "I could not extract a reply body.",
+        });
+        continue;
+      }
+
+      const latestEmail =
+        isLatest
+          ? await getLatestInboxEmail(
+              userId
+            )
+          : null;
+
+      const targetEmail =
+        isLatest
+          ? latestEmail
+          : action.sender
+            ? (
+                await searchEmails(
+                  userId,
+                  `from:${action.sender}`,
+                  1
+                )
+              ).messages?.[0] ?? null
+            : null;
+
+      if (!targetEmail?.id) {
+        results.push({
+          action:
+            "reply_email",
+          response:
+            isLatest
+              ? "No email found"
+              : "No matching email found",
+        });
+        continue;
+      }
+
+      const email =
+        await tenant.gmail.api.messages.get(
+          {
+            id: targetEmail.id,
+            format: "full",
+          }
+        );
+
+      const headers =
+        email.payload?.headers ?? [];
+      const subject =
+        headers.find(
+          (h) =>
+            h.name?.toLowerCase() ===
+            "subject"
+        )?.value ?? "";
+      const from =
+        headers.find(
+          (h) =>
+            h.name?.toLowerCase() ===
+            "from"
+        )?.value ?? "";
+      const emailMatch =
+        from.match(/<(.+?)>/);
+      const recipient =
+        emailMatch?.[1];
+
+      if (!recipient) {
+        results.push({
+          action:
+            "reply_email",
+          response:
+            "Could not determine recipient",
+        });
+        continue;
+      }
+
+      const replied =
+        await replyToEmail(
+          userId,
+          recipient,
+          subject,
+          action.body,
+          email.threadId!
+        );
+
+      results.push({
+        action:
+          "reply_email",
+        response: isLatest
+          ? "Replied to latest email"
+          : `Replied to ${action.sender}`,
+        data: replied,
+      });
+      continue;
+    }
+
+    if (
+  action.action ===
+  "search_email"
+) {
+  if (!action.query?.trim()) {
+    continue;
+  }
+
+      const emails =
+        await searchEmails(
+          userId,
+          action.query,
+          action.maxResults ?? 10
+        );
+
+      const detailedEmails =
+        await Promise.all(
+          (emails.messages ?? []).map(
+            (email) =>
+              tenant.gmail.api.messages.get(
+                {
+                  id: email.id!,
+                }
+              )
+          )
+        );
+
+    const latestEmailLines =
+  detailedEmails
+    .slice(0, 5)
+    .map((email: any, index) => {
+      const headers =
+        email.payload?.headers ?? [];
+
+      const subject =
+        headers.find(
+          (h: any) =>
+            h.name?.toLowerCase() ===
+            "subject"
+        )?.value ?? "No Subject";
+
+      const from =
+        headers.find(
+          (h: any) =>
+            h.name?.toLowerCase() ===
+            "from"
+        )?.value ?? "Unknown Sender";
+
+      return `${index + 1}. ${subject}\nFrom: ${from}`;
+    })
+    .join("\n\n");
+
+results.push({
+  action: "search_email",
+  response: `Latest Emails\n\n${latestEmailLines}`,
+  data: detailedEmails,
+});
+      continue;
+    }
+
+    if (
+      action.action ===
+      "mark_read"
+    ) {
+      const isLatest = Boolean(
+        (action as any).latest
+      );
+
+      if (isLatest) {
+        const latestEmail =
+          await getLatestInboxEmail(
+            userId
+          );
+
+        if (!latestEmail?.id) {
+          results.push({
+            action: "mark_read",
+            response: "No email found",
+          });
+          continue;
+        }
+
+        const marked =
+          await markEmailRead(
+            userId,
+            latestEmail.id
+          );
+
+        results.push({
+          action: "mark_read",
+          response:
+            "Marked latest email as read",
+          data: marked,
+        });
+
+        continue;
+      }
+
+      if (!action.sender) {
+        results.push({
+          action:
+            "mark_read",
+          response:
+            "I could not identify which sender to mark as read.",
+        });
+        continue;
+      }
+
+      const emails =
+        await searchEmails(
+          userId,
+          `from:${action.sender}`,
+          1
+        );
+      const latestEmail =
+        emails.messages?.[0];
+
+      if (!latestEmail?.id) {
+        results.push({
+          action:
+            "mark_read",
+          response:
+            "No matching email found",
+        });
+        continue;
+      }
+
+      const marked =
+        await markEmailRead(
+          userId,
+          latestEmail.id
+        );
+
+      results.push({
+        action:
+          "mark_read",
+        response: `Marked latest email from ${action.sender} as read`,
+        data: marked,
+      });
+      continue;
+    }
+
+if (
+  action.action ===
+  "star_email"
+) {
+  const isLatest = Boolean(
+    (action as any).latest
+  );
+
+  if (isLatest) {
+    const latestEmail =
+      await getLatestInboxEmail(
+        userId
+      );
+
+    if (!latestEmail?.id) {
+      results.push({
+        action: "star_email",
+        response: "No email found",
+      });
+      continue;
+    }
+
+    const starred =
+      await starEmail(
+        userId,
+        latestEmail.id
+      );
+
+    results.push({
+      action: "star_email",
+      response:
+        "Starred latest email",
+      data: starred,
+    });
+
+    continue;
+  }
+
+  if (!action.sender) {
+    results.push({
+      action:
+        "star_email",
+      response:
+        "I could not identify which sender to star.",
+    });
+    continue;
+  }
+
+  const emails =
+    await searchEmails(
+      userId,
+      `from:${action.sender}`,
+      1
+    );
+
+  const latestEmail =
+    emails.messages?.[0];
+
+  if (!latestEmail?.id) {
+    results.push({
+      action:
+        "star_email",
+      response:
+        "No matching email found",
+    });
+    continue;
+  }
+
+  const starred =
+    await starEmail(
+      userId,
+      latestEmail.id
+    );
+
+  results.push({
+    action:
+      "star_email",
+    response: `Starred latest email from ${action.sender}`,
+    data: starred,
+  });
+
+  continue;
+}
+  }
+
+  if (results.length === 0) {
+    return null;
+  }
+
+  return results;
+}
+
+async function collectInboxData(userId: string) {
+  const tenant = corsair.withTenant(userId);
+  const searchResult = await searchEmails(
+    userId,
+    "newer_than:14d",
+    20
+  );
+
+  const detailedEmails = await Promise.all(
+    (searchResult.messages ?? []).map((email) =>
+      tenant.gmail.api.messages.get({
+        id: email.id!,
+        format: "full",
+      })
+    )
+  );
+
+  const upcomingEvents = await getUpcomingEvents(
+    userId,
+    10
+  );
+
+  return {
+    emails: detailedEmails.map((email) => ({
+      id: email.id,
+      threadId: email.threadId,
+      labelIds: email.labelIds,
+      internalDate: email.internalDate,
+      subject:
+        email.payload?.headers?.find(
+          (header) =>
+            header.name?.toLowerCase() === "subject"
+        )?.value ?? "No Subject",
+      from:
+        email.payload?.headers?.find(
+          (header) =>
+            header.name?.toLowerCase() === "from"
+        )?.value ?? "Unknown Sender",
+      snippet: email.snippet ?? "",
+    })),
+    events: upcomingEvents,
+  };
+}
 
 export async function POST(req: Request) {
   try {
@@ -83,8 +713,69 @@ if (!userId) {
       status: 401,
     }
   );
-}
+    }
     const { message } = await req.json();
+
+    const structuredActions =
+      await executeStructuredActions(
+        userId,
+        message
+      );
+
+    if (structuredActions) {
+      const response =
+        structuredActions
+          .map((item) => item.response)
+          .join("\n");
+
+      return Response.json({
+        source:
+          structuredActions.length > 1
+            ? "structured-multi-action"
+            : "structured-action",
+        response,
+        actions: structuredActions,
+      });
+    }
+
+    if (
+      isCatchMeUpQuery(message) ||
+      isInboxSummaryQuery(message) ||
+      isUrgentEmailQuery(message) ||
+      isReplyNeededQuery(message) ||
+      isScheduleSummaryQuery(message)
+    ) {
+      const { emails, events } =
+        await collectInboxData(userId);
+
+      const response =
+        await generateInboxIntelligence(
+          message,
+          emails,
+          events
+        );
+
+      let source = "gmail-intelligence";
+
+      if (isCatchMeUpQuery(message)) {
+        source = "catch-me-up";
+      } else if (isUrgentEmailQuery(message)) {
+        source = "gmail-urgent";
+      } else if (isReplyNeededQuery(message)) {
+        source = "gmail-reply-needed";
+      } else if (isInboxSummaryQuery(message)) {
+        source = "gmail-inbox-summary";
+      } else if (isScheduleSummaryQuery(message)) {
+        source = "calendar-summary";
+      }
+
+      return Response.json({
+        source,
+        response,
+        emails,
+        events,
+      });
+    }
 
 const {
   isEmailQuery,
@@ -613,7 +1304,10 @@ console.log(
       eventData.start,
       eventData.end
     );
-
+console.log(
+  "CREATE EVENT RESPONSE",
+  JSON.stringify(event, null, 2)
+);
   return Response.json({
     source:
       "calendar-create",
@@ -849,10 +1543,67 @@ if (isEmailSearchQuery(message)) {
       )
     );
 
+  const normalizedEmails =
+    detailedEmails.map((email: any) => {
+      const headers =
+        email.payload?.headers ?? [];
+      const subject =
+        headers.find(
+          (header: any) =>
+            header.name?.toLowerCase() ===
+            "subject"
+        )?.value ?? email.subject ?? "No Subject";
+      const from =
+        headers.find(
+          (header: any) =>
+            header.name?.toLowerCase() ===
+            "from"
+        )?.value ?? email.from ?? "Unknown Sender";
+      const internalDate =
+        email.internalDate ?? null;
+      const labelIds =
+        email.labelIds ?? [];
+
+      return {
+        id: String(email.id ?? ""),
+        threadId:
+          String(email.threadId ?? email.id ?? ""),
+        subject,
+        from,
+        snippet: email.snippet ?? "",
+        labelIds,
+        internalDate,
+        unread: Array.isArray(labelIds)
+          ? labelIds.includes("UNREAD")
+          : false,
+        starred: Array.isArray(labelIds)
+          ? labelIds.includes("STARRED")
+          : false,
+      };
+    });
+
+  const latestEmailLines =
+    normalizedEmails
+      .slice(0, 5)
+      .map((email, index) => {
+        const received =
+          email.internalDate
+            ? new Date(
+                Number(email.internalDate)
+              ).toLocaleString()
+            : "Unknown";
+
+        return `${index + 1}. Subject: ${email.subject}\nFrom: ${email.from}\nSnippet: ${email.snippet}\nReceived: ${received}`;
+      })
+      .join("\n\n");
+
   return Response.json({
     source: "gmail-search",
-    response: `Found ${detailedEmails.length} emails`,
-    emails: detailedEmails,
+    response:
+      normalizedEmails.length > 0
+        ? `Latest Emails\n\n${latestEmailLines}`
+        : "No emails found",
+    emails: normalizedEmails,
   });
 }
 if (
@@ -872,14 +1623,23 @@ if (
     );
 
   const event =
-    events.find(
-      (e) =>
-        e.summary
-          ?.toLowerCase()
-          .includes(
-            data.title.toLowerCase()
-          )
-    );
+  events.find(
+    (e) => {
+      const summary =
+        (
+          e.summary ??
+          ""
+        ).toLowerCase();
+
+      const title =
+        data.title.toLowerCase();
+
+      return (
+        summary.includes(title) ||
+        title.includes(summary)
+      );
+    }
+  );
 
   if (
     !event?.id ||
@@ -957,14 +1717,23 @@ if (isEmailQuery) {
     );
 
   const event =
-    events.find(
-      (e) =>
-        e.summary
-          ?.toLowerCase()
-          .includes(
-            data.title.toLowerCase()
-          )
-    );
+  events.find(
+    (e) => {
+      const summary =
+        (
+          e.summary ??
+          ""
+        ).toLowerCase();
+
+      const title =
+        data.title.toLowerCase();
+
+      return (
+        summary.includes(title) ||
+        title.includes(summary)
+      );
+    }
+  );
 
   if (!event?.id) {
     return Response.json({
@@ -1004,15 +1773,24 @@ if (
      userId, 50
     );
 
-  const event =
-    events.find(
-      (e) =>
-        e.summary
-          ?.toLowerCase()
-          .includes(
-            data.title.toLowerCase()
-          )
-    );
+const event =
+  events.find(
+    (e) => {
+      const summary =
+        (
+          e.summary ??
+          ""
+        ).toLowerCase();
+
+      const title =
+        data.title.toLowerCase();
+
+      return (
+        summary.includes(title) ||
+        title.includes(summary)
+      );
+    }
+  );;
 
   if (!event?.id) {
     return Response.json({

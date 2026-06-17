@@ -26,11 +26,21 @@ type EmailItem = {
   subject: string;
   from: string;
   snippet: string;
+  labelIds?: string[];
+  internalDate?: string | null;
+  unread?: boolean;
+  starred?: boolean;
 };
 
 type SearchEmailItem = {
   id?: string;
   snippet?: string;
+  subject?: string;
+  from?: string;
+  internalDate?: string | null;
+  labelIds?: string[];
+  unread?: boolean;
+  starred?: boolean;
   payload?: {
     headers?: Array<{
       name?: string;
@@ -42,14 +52,24 @@ type SearchEmailItem = {
 function mapSearchResults(rawEmails: SearchEmailItem[]): EmailItem[] {
   return rawEmails.map((email, index) => {
     const headers = email.payload?.headers ?? [];
-    const subject = headers.find((header) => header.name?.toLowerCase() === "subject")?.value ?? "No Subject";
-    const from = headers.find((header) => header.name?.toLowerCase() === "from")?.value ?? "Unknown Sender";
+    const subject =
+      email.subject ??
+      headers.find((header) => header.name?.toLowerCase() === "subject")?.value ??
+      "No Subject";
+    const from =
+      email.from ??
+      headers.find((header) => header.name?.toLowerCase() === "from")?.value ??
+      "Unknown Sender";
 
     return {
       id: email.id ?? `search-${index}`,
       subject,
       from,
       snippet: email.snippet ?? "",
+      labelIds: email.labelIds ?? [],
+      internalDate: email.internalDate ?? null,
+      unread: Boolean(email.unread),
+      starred: Boolean(email.starred),
     };
   });
 }
@@ -275,13 +295,15 @@ export default function InboxPage() {
             </CardHeader>
             <CardContent className="max-h-[calc(100vh-18rem)] space-y-3 overflow-y-auto p-4">
               {filteredEmails.map((email) => (
-                <EmailListItem
+              <EmailListItem
                   key={email.id}
                   email={{
                     id: email.id,
                     from: email.from,
                     subject: email.subject,
                     snippet: `${email.summary} ${email.actionRequired}`,
+                    unread: Boolean((email as EmailItem).unread),
+                    starred: Boolean((email as EmailItem).starred),
                   }}
                   isActive={selectedEmail?.id === email.id}
                   onSelect={() => setSelectedId(email.id)}
@@ -301,6 +323,10 @@ export default function InboxPage() {
               summary: selectedEmail.summary,
               urgency: selectedEmail.urgency,
               actionRequired: selectedEmail.actionRequired,
+              labelIds: selectedEmail.labelIds,
+              internalDate: selectedEmail.internalDate,
+              unread: selectedEmail.unread,
+              starred: selectedEmail.starred,
             }}
           />
         ) : (

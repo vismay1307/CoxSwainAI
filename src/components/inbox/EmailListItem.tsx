@@ -7,6 +7,9 @@ type Email = {
   subject: string;
   from: string;
   snippet: string;
+  unread?: boolean;
+  starred?: boolean;
+  labelIds?: string[];
 };
 
 type EmailListItemProps = {
@@ -52,9 +55,17 @@ export default function EmailListItem({
           </p>
 
           <div className="mt-3">
-            <Badge variant="outline">
-              Gmail
-            </Badge>
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="outline">
+                Gmail
+              </Badge>
+              {email.unread ? (
+                <Badge variant="primary">Unread</Badge>
+              ) : null}
+              {email.starred ? (
+                <Badge variant="warning">Starred</Badge>
+              ) : null}
+            </div>
           </div>
         </div>
       </div>

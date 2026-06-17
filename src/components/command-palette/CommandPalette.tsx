@@ -72,9 +72,13 @@ export default function CommandPalette() {
       );
 
       setResponse(
+  artifacts.cards?.length
+    ? ""
+    : (
         payload.response ??
-          "No response returned."
-      );
+        "No response returned."
+      )
+);
     } catch {
       setResponse(
         "Something went wrong."
@@ -232,27 +236,34 @@ export default function CommandPalette() {
                     </span>
                   </div>
 
-                  {/* AI RESPONSE */}
-
-                  <div className="rounded-3xl border bg-gradient-to-br from-secondary to-white p-5">
-                    <p className="whitespace-pre-wrap text-sm leading-7 text-muted-foreground">
-                      {response}
-                    </p>
-                  </div>
+                  {!cards.length ? (
+                    <div className="rounded-3xl border bg-gradient-to-br from-secondary to-white p-5">
+                      <p className="whitespace-pre-wrap text-sm leading-7 text-muted-foreground">
+                        {response}
+                      </p>
+                    </div>
+                  ) : null}
 
                   {/* TOOL CARDS */}
 
                   {cards.length > 0 && (
                     <div className="mt-4 space-y-3">
-                      {false && cards.length > 0 && (
-  <div className="mt-4 space-y-3">
-    {cards.map((card, index) => (
-      <div key={index}>
-        {card.title}
-      </div>
-    ))}
-  </div>
-)}
+                      {cards.map((card, index) => (
+                        <div key={index} className="rounded-2xl border bg-white p-4">
+                          <p className="text-sm font-semibold">{card.title}</p>
+                          <p className="mt-2 text-sm text-muted-foreground">{card.detail}</p>
+                          {Array.isArray(card.fields) && card.fields.length > 0 ? (
+                            <div className="mt-3 grid gap-2 text-xs text-muted-foreground">
+                              {card.fields.map((field: any) => (
+                                <div key={`${field.label}-${field.value}`} className="flex items-center justify-between gap-3 rounded-xl bg-secondary/60 px-3 py-2">
+                                  <span>{field.label}</span>
+                                  <span className="text-foreground">{field.value}</span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                      ))}
                     </div>
                   )}
 
