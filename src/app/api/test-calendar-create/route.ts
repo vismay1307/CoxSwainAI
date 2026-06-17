@@ -1,7 +1,9 @@
 import { corsair } from "@/server/corsair";
 
 export async function GET() {
-  const tenant = corsair.withTenant("default");
+  const tenant = corsair.withTenant(
+  "user_3FAgkAJtQlqk0GFlSAWtve3ZP9H"
+);
 
   try {
     const event = await tenant.googlecalendar.api.events.create({

@@ -43,6 +43,7 @@
   },
   "devDependencies": {
     "@corsair-dev/cli": "^0.1.19",
+    "@corsair-dev/studio": "^0.1.5",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/pg": "^8.20.0",

@@ -9,13 +9,19 @@ import SuggestedPrompts from "@/components/chat/SuggestedPrompts";
 import PageContainer from "@/components/layout/PageContainer";
 import { Badge } from "@/components/ui/Badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card";
-import { chatSessions, initialChatMessages, suggestedPrompts, type ChatMessageRecord } from "@/lib/mock-data";
+import ErrorState from "@/components/ui/ErrorState";
+import type { ChatMessageRecord } from "@/types/chat";
+import { starterPrompts } from "../../../../src/lib/chat-prompts";
+import { buildToolCardsFromChatResponse, type ChatApiResponse } from "@/lib/command-center";
 
 export default function ChatPage() {
-  const [messages, setMessages] = useState<ChatMessageRecord[]>(initialChatMessages);
+ const [messages, setMessages] = useState<ChatMessageRecord[]>([]);
   const [isTyping, setIsTyping] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   async function handleSend(message: string) {
+    setErrorMessage("");
+
     const userMessage: ChatMessageRecord = {
       id: crypto.randomUUID(),
       role: "user",
@@ -42,33 +48,50 @@ export default function ChatPage() {
       });
 
       const data = await response.json();
+      const payload = data as ChatApiResponse;
+      const artifacts = buildToolCardsFromChatResponse(payload, message);
 
       const assistantMessage: ChatMessageRecord = {
         id: crypto.randomUUID(),
         role: "assistant",
-        content: data.response ?? "No response returned from the assistant.",
+        content: payload.response ?? "No response returned from the assistant.",
         timestamp: new Intl.DateTimeFormat("en-US", {
           hour: "2-digit",
           minute: "2-digit",
         }).format(new Date()),
+        route: artifacts.route,
+        toolResults: artifacts.cards,
+        actions: artifacts.actions,
       };
 
       startTransition(() => {
         setMessages((current) => [...current, assistantMessage]);
       });
     } catch {
+      setErrorMessage("Chat is temporarily unavailable. You can still browse the other workspaces.");
       startTransition(() => {
         setMessages((current) => [
           ...current,
           {
             id: crypto.randomUUID(),
             role: "assistant",
+            route: "general",
             content:
               "I could not reach the chat route just now. The frontend is still wired correctly, so try again once the backend route is available.",
             timestamp: new Intl.DateTimeFormat("en-US", {
               hour: "2-digit",
               minute: "2-digit",
             }).format(new Date()),
+            actions: [
+              {
+                label: "Try Gmail summary",
+                prompt: "Summarize my unread important emails.",
+              },
+              {
+                label: "Check my schedule",
+                prompt: "What are my upcoming meetings today?",
+              },
+            ],
           },
         ]);
       });
@@ -84,21 +107,17 @@ export default function ChatPage() {
           <CardTitle>Conversation history</CardTitle>
           <CardDescription>Quick access to your common AI workflows.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3">
-          {chatSessions.map((session) => (
-            <button
-              key={session.id}
-              type="button"
-              className="w-full rounded-[1.5rem] border border-border bg-secondary/60 p-4 text-left transition hover:bg-secondary"
-            >
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-sm font-semibold">{session.title}</p>
-                <Badge variant="outline">Saved</Badge>
-              </div>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">{session.preview}</p>
-            </button>
-          ))}
-        </CardContent>
+<CardContent>
+  <div className="rounded-[1.5rem] border border-border bg-secondary/60 p-4">
+    <p className="text-sm font-semibold">
+      No saved conversations yet
+    </p>
+
+    <p className="mt-2 text-sm text-muted-foreground">
+      Start chatting with CoxswainAI to build your workspace history.
+    </p>
+  </div>
+</CardContent>
       </Card>
 
       <div className="space-y-6">
@@ -117,7 +136,10 @@ export default function ChatPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <SuggestedPrompts prompts={suggestedPrompts} onSelect={(prompt) => void handleSend(prompt)} />
+            <SuggestedPrompts
+  prompts={starterPrompts}
+  onSelect={(prompt) => void handleSend(prompt)}
+/>
           </CardContent>
         </Card>
 
@@ -125,10 +147,11 @@ export default function ChatPage() {
           <CardContent className="flex h-full flex-col gap-6 p-6">
             <div className="flex items-center gap-3 rounded-2xl bg-secondary/70 px-4 py-3 text-sm text-muted-foreground">
               <MessageSquareQuote className="size-4 text-primary" />
-              Messages can use the existing backend route while all surrounding UX remains frontend-only.
+              Command routing already uses the existing chat route. The frontend adds result cards and suggested follow-up actions.
             </div>
+            {errorMessage ? <ErrorState description={errorMessage} /> : null}
             <div className="min-h-[26rem] flex-1">
-              <ChatWindow messages={messages} isTyping={isTyping} />
+              <ChatWindow messages={messages} isTyping={isTyping} onAction={(prompt) => void handleSend(prompt)} />
             </div>
             <ChatInput onSend={handleSend} loading={isTyping} />
           </CardContent>

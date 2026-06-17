@@ -25,7 +25,7 @@ export function TRPCProvider({
         links: [
           httpBatchLink({
   url:
-    "http://localhost:3000/api/trpc",
+    "/api/trpc",
 
   transformer:
     superjson,

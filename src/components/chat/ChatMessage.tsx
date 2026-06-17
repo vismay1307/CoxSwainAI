@@ -1,19 +1,33 @@
 import { Bot, Sparkles, User2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
-import type { ChatMessageRecord } from "@/lib/mock-data";
+import type { ChatMessageRecord } from "@/types/chat";
 import { cn } from "@/lib/utils";
 
-type ChatMessageProps = ChatMessageRecord;
+type ChatMessageProps = ChatMessageRecord & {
+  onAction?: (prompt: string) => void;
+};
 
 export default function ChatMessage({
   role,
   content,
   timestamp,
+  route,
   toolResults,
+  actions,
+  onAction,
 }: ChatMessageProps) {
   const isAssistant = role === "assistant";
+  const routeLabel =
+    route === "gmail"
+      ? "Gmail"
+      : route === "calendar"
+        ? "Calendar"
+        : route === "github"
+          ? "GitHub"
+          : "General";
 
   return (
     <div className={cn("flex gap-4", isAssistant ? "justify-start" : "justify-end")}>
@@ -37,6 +51,7 @@ export default function ChatMessage({
               {isAssistant ? <Sparkles className="mr-1 size-3" /> : <User2 className="mr-1 size-3" />}
               {isAssistant ? "CoxswainAI" : "You"}
             </Badge>
+            {isAssistant ? <Badge variant="outline">{routeLabel}</Badge> : null}
             <span className={cn("text-xs", isAssistant ? "text-muted-foreground" : "text-blue-100")}>
               {timestamp}
             </span>
@@ -46,16 +61,43 @@ export default function ChatMessage({
 
         {toolResults?.length ? (
           <div className="grid gap-3 sm:grid-cols-3">
-            {toolResults.map((result) => (
-              <Card key={result.title} className="bg-white">
+            {toolResults.map((result, index) => (
+              <Card key={`${result.title}-${index}`} className="bg-white">
                 <CardContent className="p-4">
                   <p className="text-xs font-semibold tracking-[0.2em] text-muted-foreground uppercase">
                     {result.title}
                   </p>
                   {result.metric ? <p className="mt-3 text-2xl font-semibold">{result.metric}</p> : null}
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">{result.detail}</p>
+                  {result.fields?.length ? (
+                    <div className="mt-4 space-y-2 rounded-2xl bg-secondary/60 p-3">
+                      {result.fields.map((field) => (
+                        <div key={`${result.title}-${field.label}`} className="flex items-start justify-between gap-3 text-sm">
+                          <span className="text-muted-foreground">{field.label}</span>
+                          <span className="max-w-[14rem] text-right font-medium">{field.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
                 </CardContent>
               </Card>
+            ))}
+          </div>
+        ) : null}
+
+        {isAssistant && actions?.length ? (
+          <div className="flex flex-wrap gap-2">
+            {actions.map((action) => (
+              <Button
+                key={action.label}
+                type="button"
+                variant="outline"
+                size="sm"
+                className="rounded-full"
+                onClick={() => onAction?.(action.prompt)}
+              >
+                {action.label}
+              </Button>
             ))}
           </div>
         ) : null}

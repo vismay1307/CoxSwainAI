@@ -1,178 +1,160 @@
 "use client";
 
+import { Mail, CalendarDays, GitBranch, Sparkles, ArrowUpRight } from "lucide-react";
+import Link from "next/link";
+
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card";
+import ErrorState from "@/components/ui/ErrorState";
+import PageSkeleton from "@/components/ui/PageSkeleton";
 import {
-  Mail,
-  CalendarDays,
-  GitBranch,
-  Sparkles,
-} from "lucide-react";
+  buildCalendarInsights,
+  buildDailyDigest,
+  buildDigestRecommendations,
+  mapCalendarEvents,
+} from "@/lib/command-center";
 import { api } from "@/trpc/client";
 
 export default function DashboardClient() {
-  const { data: emails = [] } =
-    api.gmail.readEmails.useQuery({
+  const emailQuery = api.gmail.readEmails.useQuery(
+    {
       maxResults: 20,
-    });
+    },
+    {
+      refetchOnWindowFocus: true,
+    }
+  );
+  const calendarQuery = api.calendar.weekEvents.useQuery(undefined, {
+    refetchOnWindowFocus: true,
+  });
+  const reposQuery = api.github.repos.useQuery(undefined, {
+    refetchOnWindowFocus: true,
+  });
 
-  const { data: events = [] } =
-    api.calendar.weekEvents.useQuery();
+  if (emailQuery.isLoading || calendarQuery.isLoading || reposQuery.isLoading) {
+    return <PageSkeleton cards={3} rows={2} />;
+  }
 
-  const { data: repos = [] } =
-    api.github.repos.useQuery();
+  if (emailQuery.error || calendarQuery.error || reposQuery.error) {
+    return (
+      <ErrorState
+        description={
+          emailQuery.error?.message ||
+          calendarQuery.error?.message ||
+          reposQuery.error?.message ||
+          "Could not load the command center overview."
+        }
+      />
+    );
+  }
 
-  const latestEmail =
-    emails.length > 0
-      ? emails[0]
-      : null;
+  const emails = emailQuery.data ?? [];
+  const rawEvents = calendarQuery.data ?? [];
+  const repos = reposQuery.data ?? [];
+  const digest = buildDailyDigest(emails);
+  const calendarInsights = buildCalendarInsights(mapCalendarEvents(rawEvents as never[]));
+  const recommendations = buildDigestRecommendations(emails, rawEvents as never[], repos as never[]);
 
-  const nextEvent =
-    events.length > 0
-      ? events[0]
-      : null;
-
-  const latestRepo =
-    repos.length > 0
-      ? repos[0]
-      : null;
+  const overviewCards = [
+    {
+      label: "Inbox overview",
+      value: String(digest.unreadCount),
+      detail: `${digest.importantCount} important emails in the queue`,
+      icon: Mail,
+      href: "/inbox",
+    },
+    {
+      label: "Calendar overview",
+      value: String(calendarInsights.todayMeetings),
+      detail: calendarInsights.nextMeeting
+        ? `Next: ${calendarInsights.nextMeeting.title}`
+        : "No upcoming meeting right now",
+      icon: CalendarDays,
+      href: "/calendar",
+    },
+    {
+      label: "GitHub overview",
+      value: String(repos.length),
+      detail: repos.length > 0 ? `${repos[0]?.name} is the most recently loaded repo` : "No repositories connected",
+      icon: GitBranch,
+      href: "/github",
+    },
+  ];
 
   return (
-    <div className="space-y-4">
-      {/* Top KPI Row */}
+    <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-3xl border bg-white p-6">
-          <p className="text-sm text-muted-foreground">
-            Emails
-          </p>
-
-          <p className="mt-2 text-4xl font-bold">
-            {emails.length}
-          </p>
-        </div>
-
-        <div className="rounded-3xl border bg-white p-6">
-          <p className="text-sm text-muted-foreground">
-            Calendar Events
-          </p>
-
-          <p className="mt-2 text-4xl font-bold">
-            {events.length}
-          </p>
-        </div>
-
-        <div className="rounded-3xl border bg-white p-6">
-          <p className="text-sm text-muted-foreground">
-            GitHub Repositories
-          </p>
-
-          <p className="mt-2 text-4xl font-bold">
-            {repos.length}
-          </p>
-        </div>
+        {overviewCards.map((card) => (
+          <Card key={card.label} className="bg-white">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <span className="flex size-11 items-center justify-center rounded-2xl bg-secondary text-primary">
+                  <card.icon className="size-5" />
+                </span>
+                <Button asChild variant="outline" size="sm">
+                  <Link href={card.href}>
+                    Open
+                    <ArrowUpRight className="size-4" />
+                  </Link>
+                </Button>
+              </div>
+              <p className="mt-4 text-sm text-muted-foreground">{card.label}</p>
+              <p className="mt-2 text-4xl font-semibold tracking-tight">{card.value}</p>
+              <p className="mt-3 text-sm leading-6 text-muted-foreground">{card.detail}</p>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
-      {/* AI Command Brief */}
-      <div className="rounded-3xl border bg-gradient-to-r from-slate-950 to-slate-800 p-6 text-white">
-        <div className="flex items-center gap-2">
-          <Sparkles className="size-4" />
-          <p className="font-semibold">
-            AI Command Brief
-          </p>
-        </div>
+      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+        <Card className="overflow-hidden bg-linear-to-br from-slate-950 via-slate-900 to-primary text-white">
+          <CardContent className="p-8">
+            <Badge className="border-white/10 bg-white/10 text-white">
+              <Sparkles className="mr-1 size-3" />
+              AI recommendations
+            </Badge>
+            <h2 className="mt-4 text-3xl font-semibold tracking-tight">One command center for email, meetings, and delivery signal.</h2>
+            <div className="mt-6 space-y-3">
+              {recommendations.map((recommendation) => (
+                <div key={recommendation} className="rounded-2xl border border-white/10 bg-white/8 px-4 py-3 text-sm text-blue-50">
+                  {recommendation}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
 
-        <p className="mt-4 text-sm leading-7 text-slate-200">
-          You currently have{" "}
-          <strong>{emails.length}</strong>{" "}
-          emails,{" "}
-          <strong>{events.length}</strong>{" "}
-          calendar events, and{" "}
-          <strong>{repos.length}</strong>{" "}
-          GitHub repositories connected.
-        </p>
-      </div>
-
-      {/* Live Data Cards */}
-      <div className="grid gap-4 lg:grid-cols-3">
-        {/* Latest Email */}
-        <div className="rounded-3xl border bg-white p-6">
-          <div className="flex items-center gap-2">
-            <Mail className="size-4 text-primary" />
-            <p className="font-semibold">
-              Latest Email
-            </p>
-          </div>
-
-          {latestEmail ? (
-            <>
-              <p className="mt-4 line-clamp-2 font-medium">
-                {latestEmail.subject}
+        <Card className="bg-white">
+          <CardHeader>
+            <CardTitle>Actionable cards</CardTitle>
+            <CardDescription>What needs attention across the connected workspaces right now.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="rounded-[1.5rem] bg-secondary/70 p-5">
+              <p className="text-sm font-semibold">Inbox overview</p>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                {digest.topItems[0]?.summary ?? "Inbox is calm at the moment."}
               </p>
-
-              <p className="mt-2 text-sm text-muted-foreground">
-                {latestEmail.from}
+            </div>
+            <div className="rounded-[1.5rem] bg-secondary/70 p-5">
+              <p className="text-sm font-semibold">Calendar overview</p>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                {calendarInsights.freeBlocks[0]
+                  ? `You still have a ${calendarInsights.freeBlocks[0].minutes}-minute block at ${calendarInsights.freeBlocks[0].label}.`
+                  : "No major free block is available today."}
               </p>
-            </>
-          ) : (
-            <p className="mt-4 text-sm text-muted-foreground">
-              No emails found
-            </p>
-          )}
-        </div>
-
-        {/* Next Calendar Event */}
-        <div className="rounded-3xl border bg-white p-6">
-          <div className="flex items-center gap-2">
-            <CalendarDays className="size-4 text-primary" />
-            <p className="font-semibold">
-              Next Event
-            </p>
-          </div>
-
-          {nextEvent ? (
-            <>
-              <p className="mt-4 line-clamp-2 font-medium">
-                {nextEvent.data?.summary ??
-                  "Untitled Event"}
+            </div>
+            <div className="rounded-[1.5rem] bg-secondary/70 p-5">
+              <p className="text-sm font-semibold">GitHub overview</p>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                {repos.length > 0
+                  ? `${repos.length} repositories are connected and ready for command-center review.`
+                  : "No GitHub repository data is currently available."}
               </p>
-
-              <p className="mt-2 text-sm text-muted-foreground">
-                {nextEvent.data?.start?.dateTime ??
-                  nextEvent.data?.start?.date ??
-                  "No date"}
-              </p>
-            </>
-          ) : (
-            <p className="mt-4 text-sm text-muted-foreground">
-              No events found
-            </p>
-          )}
-        </div>
-
-        {/* Latest Repo */}
-        <div className="rounded-3xl border bg-white p-6">
-          <div className="flex items-center gap-2">
-           <GitBranch className="size-4 text-primary" />
-            <p className="font-semibold">
-              Latest Repository
-            </p>
-          </div>
-
-          {latestRepo ? (
-            <>
-              <p className="mt-4 line-clamp-2 font-medium">
-                {latestRepo.name}
-              </p>
-
-              <p className="mt-2 text-sm text-muted-foreground">
-                {latestRepo.language ??
-                  "No language"}
-              </p>
-            </>
-          ) : (
-            <p className="mt-4 text-sm text-muted-foreground">
-              No repositories found
-            </p>
-          )}
-        </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

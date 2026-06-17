@@ -2,16 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, Command, Menu, Search, Settings } from "lucide-react";
+import { Bell, Command, Menu, Search } from "lucide-react";
 import {
   SignInButton,
   UserButton,
   useUser,
 } from "@clerk/nextjs";
-
 import MobileSidebar from "@/components/layout/MobileSidebar";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -99,14 +97,29 @@ const { user, isSignedIn } =
           </div>
 
           {/* ── CENTER: search bar ── */}
-          <div className="hidden w-full max-w-sm items-center gap-2 rounded-xl border border-white/70 bg-white/80 px-3 py-1.5 shadow-soft md:flex">
-            <Search className="size-3.5 text-muted-foreground shrink-0" />
-            <Input
-              className="h-auto border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0 placeholder:text-muted-foreground/60"
-              placeholder="Search inbox, calendar, PRs..."
-              aria-label="Search workspace"
-            />
-          </div>
+         <button
+  onClick={() => {
+    window.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "k",
+        ctrlKey: true,
+      })
+    );
+  }}
+  className="hidden w-full max-w-sm items-center justify-between rounded-xl border border-white/70 bg-white/80 px-4 py-2 shadow-soft md:flex"
+>
+  <div className="flex items-center gap-2">
+    <Search className="size-4 text-muted-foreground" />
+    <span className="text-sm text-muted-foreground">
+      Ask CoxswainAI...
+    </span>
+  </div>
+
+  <div className="flex items-center gap-1 rounded-lg border bg-secondary px-2 py-1 text-xs">
+    <Command className="size-3" />
+    K
+  </div>
+</button>
 
           {/* ── RIGHT: notifications + auth ── */}
           <div className="flex items-center gap-2 shrink-0">

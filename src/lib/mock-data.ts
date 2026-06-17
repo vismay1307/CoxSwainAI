@@ -8,6 +8,11 @@ import {
   Sparkles,
   Zap,
 } from "lucide-react";
+import type {
+  SuggestedAction,
+  ToolResultCard,
+  WorkspaceRoute,
+} from "@/lib/command-center";
 
 export type NavItem = {
   href: string;
@@ -121,18 +126,14 @@ export const dashboardStats = {
   ],
 };
 
-export type ToolResult = {
-  title: string;
-  detail: string;
-  metric?: string;
-};
-
 export type ChatMessageRecord = {
   id: string;
   role: "user" | "assistant";
   content: string;
   timestamp: string;
-  toolResults?: ToolResult[];
+  route?: WorkspaceRoute;
+  toolResults?: ToolResultCard[];
+  actions?: SuggestedAction[];
 };
 
 export const chatSessions = [
@@ -182,6 +183,20 @@ export const initialChatMessages: ChatMessageRecord[] = [
         title: "GitHub attention",
         detail: "2 PRs tagged high priority in the release lane.",
         metric: "2",
+      },
+    ],
+    actions: [
+      {
+        label: "Open inbox",
+        prompt: "Summarize my unread important emails.",
+      },
+      {
+        label: "Review schedule",
+        prompt: "What are my upcoming meetings today?",
+      },
+      {
+        label: "Check GitHub",
+        prompt: "Show latest commits for my main repository.",
       },
     ],
   },
