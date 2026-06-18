@@ -1,3 +1,4 @@
+"use client";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -10,11 +11,11 @@ import {
   Sparkles,
   Zap,
 } from "lucide-react";
-
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { landingFeatures } from "@/lib/mock-data";
+
 import { LandingHeaderActions } from "@/components/landing/LandingHeaderActions";
 
 const previewCards = [
@@ -36,9 +37,50 @@ const previewCards = [
     icon: FolderGit2,
     accent: "bg-emerald-50 text-emerald-600",
   },
+];const landingFeatures = [
+{
+title: "Think in briefs",
+description:
+"Get AI-generated summaries across inbox, calendar, and GitHub without switching contexts.",
+icon: Sparkles,
+},
+{
+title: "Clear urgent first",
+description:
+"Surface the most important conversations, meetings, and delivery risks instantly.",
+icon: Inbox,
+},
+{
+title: "Stay in flow",
+description:
+"Move from insight to action with a single command-center experience.",
+icon: Zap,
+},
 ];
 
+
 export default function HomePage() {
+  
+
+const fadeUp = {
+  hidden: { opacity: 0, y: 16 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.45,
+      },
+    },
+  };
+
+  const stagger = {
+    hidden: {},
+    visible: {
+      transition: {
+        staggerChildren: 0.08,
+      },
+    },
+  };
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#fafafa]">
       {/* Grid background */}
@@ -69,8 +111,13 @@ export default function HomePage() {
 
         {/* HERO */}
         <section className="mx-auto max-w-7xl px-4 pb-24 sm:px-6 lg:px-8">
-          <div className="grid items-center gap-12 py-16 lg:grid-cols-[1.1fr_0.9fr] lg:py-24">
-            <div>
+          <div className="grid items-center gap-14 py-16 lg:grid-cols-[1.02fr_0.98fr] lg:py-24">
+            <motion.div
+  variants={fadeUp}
+  initial="hidden"
+  animate="visible"
+>
+  
               <Badge variant="primary" className="mb-6 gap-2">
                 <Zap className="size-3" />
                 Inspired by Superhuman, Linear, Notion, Arc, and Vercel
@@ -78,7 +125,18 @@ export default function HomePage() {
 
               <h1 className="max-w-4xl text-balance text-5xl font-semibold tracking-tight text-slate-950 sm:text-6xl lg:text-7xl leading-[1.05]">
                 Your inbox, calendar, GitHub, and AI agent in one{" "}
-                <span className="bg-gradient-to-r from-primary to-violet-600 bg-clip-text text-transparent">
+                <span
+className="
+text-primary
+bg-gradient-to-r
+from-primary
+via-blue-500
+to-violet-600
+bg-clip-text
+text-transparent
+forced-colors:text-[CanvasText]
+"
+>
                   premium command center.
                 </span>
               </h1>
@@ -115,10 +173,27 @@ export default function HomePage() {
                   Unified planning surface
                 </div>
               </div>
-            </div>
+           </motion.div>
 
             {/* Preview card */}
-            <Card className="overflow-hidden border-white/80 bg-white/90 shadow-panel backdrop-blur-sm">
+            <motion.div
+  variants={fadeUp}
+  initial="hidden"
+  animate="visible"
+>
+            <Card
+  className="
+    overflow-hidden
+    bg-card/95
+    border-border
+    shadow-panel
+    backdrop-blur-xl
+    transition-all
+    duration-300
+    hover:-translate-y-1
+    hover:shadow-xl
+  "
+>
               <CardContent className="p-0">
                 <div className="border-b border-border bg-slate-950 px-6 py-5 text-white">
                   <div className="flex items-center justify-between">
@@ -168,6 +243,7 @@ export default function HomePage() {
                 </div>
               </CardContent>
             </Card>
+            </motion.div>
           </div>
         </section>
 
@@ -181,7 +257,13 @@ export default function HomePage() {
               Everything your workflow needs
             </h2>
           </div>
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <motion.div
+variants={stagger}
+initial="hidden"
+whileInView="visible"
+viewport={{ once: true }}
+className="grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+>
             {landingFeatures.map((feature) => (
               <Card
                 key={feature.title}
@@ -198,13 +280,14 @@ export default function HomePage() {
                 </CardHeader>
               </Card>
             ))}
-          </div>
+            </motion.div>
         </section>
 
         {/* PRODUCT PREVIEW */}
         <section className="mx-auto max-w-7xl px-4 pb-24 sm:px-6 lg:px-8">
+          <motion.div variants={fadeUp}>
           <Card className="overflow-hidden bg-white border-border/60 shadow-sm">
-            <CardContent className="grid gap-0 p-0 lg:grid-cols-[0.95fr_1.05fr]">
+            <CardContent className="grid gap-0 p-0 lg:grid-cols-[0.85fr_1.15fr]">
               <div className="border-b border-border p-8 lg:border-r lg:border-b-0">
                 <Badge variant="outline" className="mb-6">Product preview</Badge>
                 <h2 className="text-2xl font-semibold tracking-tight leading-snug">
@@ -235,14 +318,16 @@ export default function HomePage() {
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="rounded-2xl border border-white/10 bg-white/5 p-5 hover:bg-white/8 transition-colors">
                     <p className="text-xs text-blue-300 uppercase tracking-widest mb-2">Unread priority</p>
-                    <p className="text-4xl font-bold tracking-tight">12</p>
+                    {/* TODO: Replace with real telemetry */}
+<p className="text-4xl font-bold tracking-tight">12</p>
                     <p className="mt-3 text-xs leading-relaxed text-blue-100/70">
                       AI-sorted by urgency, customer importance, and follow-up risk.
                     </p>
                   </div>
                   <div className="rounded-2xl border border-white/10 bg-white/5 p-5 hover:bg-white/8 transition-colors">
                     <p className="text-xs text-blue-300 uppercase tracking-widest mb-2">Review window</p>
-                    <p className="text-4xl font-bold tracking-tight">45m</p>
+                    {/* TODO: Replace with real telemetry */}
+<p className="text-4xl font-bold tracking-tight">45m</p>
                     <p className="mt-3 text-xs leading-relaxed text-blue-100/70">
                       Protected between meetings so the day keeps moving.
                     </p>
@@ -259,7 +344,7 @@ export default function HomePage() {
                 </div>
               </div>
             </CardContent>
-          </Card>
+          </Card></motion.div>
         </section>
       </main>
 
