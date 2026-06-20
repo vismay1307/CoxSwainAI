@@ -7,8 +7,9 @@ export const appRouter =
   createTRPCRouter({
     health: healthRouter,
     calendar: calendarRouter,
-    gmail: gmailRouter,
     github:githubRouter,
+    gmail: gmailRouter,
+    
   });
 
 export type AppRouter =
