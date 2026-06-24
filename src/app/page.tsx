@@ -15,7 +15,7 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-
+import { Navbar } from "@/components/landing/Navbar";
 import { LandingHeaderActions } from "@/components/landing/LandingHeaderActions";
 
 const previewCards = [
@@ -90,24 +90,11 @@ const fadeUp = {
       <div className="absolute top-0 left-1/2 h-[36rem] w-[56rem] -translate-x-1/2 rounded-full bg-primary/10 blur-[120px] pointer-events-none" />
       <div className="absolute top-32 right-0 h-[20rem] w-[20rem] rounded-full bg-violet-400/10 blur-[80px] pointer-events-none" />
 
-      {/* ─── HEADER ─── */}
-      <header className="relative z-10 mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-6 sm:px-6 lg:px-8">
-        <Link href="/" className="flex items-center gap-3 group">
-          <span className="flex size-11 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-soft transition-transform group-hover:scale-105">
-            <Command className="size-5" />
-          </span>
-          <span>
-            <span className="block text-sm font-semibold tracking-tight">CoxswainAI</span>
-            <span className="block text-xs text-muted-foreground">AI command workspace</span>
-          </span>
-        </Link>
 
-        {/* ✅ FIX: Clerk-aware client component — shows avatar when signed in */}
-        <LandingHeaderActions />
-      </header>
+    <Navbar />
 
       {/* ─── MAIN ─── */}
-      <main className="relative z-10">
+      <main className="relative z-10 pt-24">
 
         {/* HERO */}
         <section className="mx-auto max-w-7xl px-4 pb-24 sm:px-6 lg:px-8">
