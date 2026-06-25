@@ -4,16 +4,103 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Command } from "lucide-react";
 import { motion } from "framer-motion";
-import { useRef, useState } from "react";
+import { useRef, useState,useEffect } from "react";
 import { LandingHeaderActions } from "./LandingHeaderActions";
-
+import {  useMotionValue, useMotionTemplate, useSpring, useTransform } from "framer-motion";
 const NAV_LINKS = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/chat",      label: "Chat"      },
   { href: "/inbox",     label: "Inbox"     },
   { href: "/github",    label: "GitHub"    },
 ];
+function BrandText() {
+  const ref = useRef<HTMLSpanElement>(null);
+  const [pos, setPos] = useState({ x: 0, y: 0 });
+  const [hovered, setHovered] = useState(false);
 
+  // Smooth position with motion values — only for coords, NOT opacity
+  const rawX = useMotionValue(0);
+  const rawY = useMotionValue(0);
+  const x    = useSpring(rawX, { stiffness: 360, damping: 30, mass: 0.4 });
+  const y    = useSpring(rawY, { stiffness: 360, damping: 30, mass: 0.4 });
+
+  useEffect(() => {
+    // Sync spring values to state for backgroundImage re-render
+    const unsub = x.on("change", xv =>
+      y.on("change", yv => setPos({ x: xv, y: yv }))()
+    );
+    return unsub;
+  }, [x, y]);
+
+  function handleMouseMove(e: React.MouseEvent<HTMLSpanElement>) {
+    const rect = ref.current?.getBoundingClientRect();
+    if (!rect) return;
+    rawX.set(e.clientX - rect.left);
+    rawY.set(e.clientY - rect.top);
+  }
+
+  return (
+    <span
+      ref={ref}
+      className="hidden sm:block relative leading-none cursor-default select-none"
+      onMouseMove={handleMouseMove}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {/* Base layer — always visible, exactly as before */}
+      <span
+        className="text-[22px] tracking-[0.06em] text-slate-800 leading-none"
+        style={{ fontFamily: BEBAS }}
+      >
+        Coxswain AI
+      </span>
+
+      {/*
+        Reveal layer — stacked on top, gradient clipped to letter shapes.
+        CRITICAL: opacity via CSS transition only (NOT Framer Motion style.opacity)
+        because animated opacity creates a compositor layer that breaks
+        WebkitBackgroundClip: text on Chrome/Safari.
+      */}
+      <span
+        aria-hidden
+        className="absolute inset-0 pointer-events-none whitespace-nowrap leading-none text-[22px] tracking-[0.06em]"
+        style={{
+          fontFamily: BEBAS,
+          display: "inline-block",
+
+          // Opacity via CSS — no compositor conflict
+          opacity: hovered ? 1 : 0,
+          transition: "opacity 0.28s ease",
+
+          // Specular glint offset above-left + broad colour bloom
+          backgroundImage: `
+            radial-gradient(
+              circle 13px at ${pos.x - 12}px ${pos.y - 16}px,
+              rgba(255,255,255,0.97) 0%,
+              rgba(255,255,255,0.30) 55%,
+              transparent 100%
+            ),
+            radial-gradient(
+              ellipse 105px 62px at ${pos.x}px ${pos.y}px,
+              #48C5F7 0%,
+              #1591D4 48%,
+              rgba(21,145,212,0.12) 72%,
+              transparent 100%
+            )
+          `,
+
+          // Clip gradient to letter shapes only
+          WebkitBackgroundClip: "text",
+          backgroundClip: "text",
+          WebkitTextFillColor: "transparent",
+          color: "transparent",
+        }}
+      >
+        Coxswain AI
+      </span>
+    </span>
+  );
+}
 // Active cyan color
 const ACTIVE_COLOR  = "#0CC8F2";
 const ACTIVE_BG     = "rgba(12,200,242,0.10)";
@@ -140,12 +227,7 @@ export function Navbar() {
           </span>
 
           {/* Brand name only — subtitle removed */}
-          <span
-            className="hidden sm:block text-[22px] tracking-[0.06em] text-slate-800 leading-none"
-            style={{ fontFamily: BEBAS }}
-          >
-            CoxswainAI
-          </span>
+          <BrandText />
         </Link>
 
         {/* ── Nav links ── */}
