@@ -166,7 +166,7 @@ export function Navbar() {
         </div>
 
         {/* ── Auth ── */}
-        <div className="shrink-0 flex items-center gap-4 [&_a]:!text-[15px] [&_button]:!text-[15px] [&_button]:!px-6 [&_button]:!py-3 [&_a]:!font-medium">
+        <div className="shrink-0 flex items-center gap-4 [&_a]:!text-[13px] [&_a]:!font-medium">
           <LandingHeaderActions />
         </div>
       </motion.nav>
